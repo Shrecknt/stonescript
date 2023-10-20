@@ -10,8 +10,8 @@ fn deserialize_version<'de, D>(deserializer: D) -> Result<Version, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let value: &str = Deserialize::deserialize(deserializer)?;
-    Version::parse(value).map_err(D::Error::custom)
+    let value: String = Deserialize::deserialize(deserializer)?;
+    Version::parse(&value).map_err(D::Error::custom)
 }
 
 #[derive(Deserialize, Debug)]

@@ -49,10 +49,10 @@ pub fn tokenize(stream: &mut Stream<char>) -> Result<Stream<Token>, eyre::Report
 
 fn read_next(stream: &mut Stream<char>) -> Option<Token> {
     skip_whitespace(stream);
-    if stream.eof(false) {
+    if stream.eof() {
         return None;
     }
-    let char = stream.peek(false, 0).unwrap();
+    let char = stream.peek(0).unwrap();
     if char == '"' {
         return Some(read_string(stream));
     }
@@ -69,13 +69,12 @@ fn read_next(stream: &mut Stream<char>) -> Option<Token> {
         return Some(read_number(stream));
     }
 
-    stream.yeet(format!("Unexpected token '{}'", char));
-    unreachable!()
+    stream.yeet(format!("Unexpected token '{}'", char))
 }
 
 fn skip_whitespace(stream: &mut Stream<char>) {
     loop {
-        let next = stream.peek(false, 0);
+        let next = stream.peek(0);
         if next.is_some() {
             let next = next.unwrap();
             if next.is_ascii_whitespace() {
@@ -107,9 +106,8 @@ fn read_string(stream: &mut Stream<char>) -> Token {
     let mut escaped = false;
     let mut string = String::new();
     loop {
-        if stream.eof(false) {
-            stream.yeet("Unexpected end of string literal".to_string());
-            unreachable!()
+        if stream.eof() {
+            stream.yeet("Unexpected end of string literal".to_string())
         }
         let char = stream.next();
         if escaped {
@@ -142,8 +140,8 @@ fn read_word_like(stream: &mut Stream<char>) -> Token {
         token_length: 0,
     };
     let mut word = String::new();
-    while !stream.eof(false) {
-        let peek = stream.peek(false, 0).unwrap();
+    while !stream.eof() {
+        let peek = stream.peek(0).unwrap();
         if !(peek.is_ascii_alphabetic() || peek == '_') {
             break;
         }
@@ -160,7 +158,7 @@ fn read_word_like(stream: &mut Stream<char>) -> Token {
 }
 
 fn read_token(stream: &mut Stream<char>) -> Option<Token> {
-    if stream.eof(false) {
+    if stream.eof() {
         return None;
     }
     let mut position = Position {
@@ -175,7 +173,7 @@ fn read_token(stream: &mut Stream<char>) -> Option<Token> {
         i -= 1;
         let mut test = String::new();
         for j in 0..i {
-            let val = stream.peek(false, j);
+            let val = stream.peek(j);
             if val.is_none() {
                 continue 'length_loop;
             }
@@ -210,12 +208,12 @@ fn read_number(stream: &mut Stream<char>) -> Token {
     };
     let mut number = String::new();
     let mut has_decimal = false;
-    if stream.peek(false, 0) == Some('-') {
+    if stream.peek(0) == Some('-') {
         number.push('-');
         stream.skip();
     }
     loop {
-        if stream.eof(false) {
+        if stream.eof() {
             position.token_length = number.len();
             if has_decimal {
                 return Token {
@@ -233,11 +231,10 @@ fn read_number(stream: &mut Stream<char>) -> Token {
                 };
             }
         }
-        let mut char = stream.peek(false, 0).unwrap();
+        let mut char = stream.peek(0).unwrap();
         if char == '.' {
             if has_decimal {
-                stream.yeet("Unexpected double decimal point".to_string());
-                unreachable!()
+                stream.yeet("Unexpected double decimal point".to_string())
             }
             has_decimal = true;
             number.push('.');
@@ -253,26 +250,23 @@ fn read_number(stream: &mut Stream<char>) -> Token {
             char = char.to_ascii_lowercase();
             if char == 'u' {
                 if number.starts_with('-') {
-                    stream.yeet("Unsigned number cannot be negative".to_string());
-                    unreachable!()
+                    stream.yeet("Unsigned number cannot be negative".to_string())
                 }
                 position.token_length = number.len() + 2;
                 stream.skip();
                 parsed_number = parsed_number.trunc();
-                if stream.eof(false) {
-                    stream.yeet("Ah yes `unsigned EOF` my favorite data type".to_string());
-                    unreachable!()
+                if stream.eof() {
+                    stream.yeet("Ah yes `unsigned EOF` my favorite data type".to_string())
                 }
                 specific = String::from("unsigned_");
                 let append_specific =
-                    match INT_TYPES.get(stream.peek(false, 0).unwrap().to_string().as_str()) {
+                    match INT_TYPES.get(stream.peek(0).unwrap().to_string().as_str()) {
                         Some(append_specific) => append_specific,
                         None => {
                             stream.yeet(format!(
                                 "Unknown integer type '{}'",
-                                stream.peek(false, 0).unwrap()
-                            ));
-                            unreachable!()
+                                stream.peek(0).unwrap()
+                            ))
                         }
                     };
                 specific.push_str(append_specific);
@@ -307,8 +301,7 @@ fn read_number(stream: &mut Stream<char>) -> Token {
                     None => match INT_TYPES.get(char.to_string().as_str()) {
                         Some(r) => r,
                         None => {
-                            stream.yeet(format!("Unknown number type '{}'", char));
-                            unreachable!()
+                            stream.yeet(format!("Unknown number type '{}'", char))
                         }
                     },
                 };

@@ -22,18 +22,11 @@ impl<T: Clone + 'static> Stream<T> {
         }
     }
 
-    pub fn eof(&self, throw_error: bool) -> bool {
-        let end_of_file = self.position >= self.contents.len();
-        if throw_error && end_of_file {
-            self.yeet("Reached end of queue".to_string());
-        }
-        end_of_file
+    pub fn eof(&self) -> bool {
+        self.position >= self.contents.len()
     }
 
-    pub fn peek(&self, throw_error: bool, distance: usize) -> Option<T> {
-        if self.eof(throw_error) {
-            return None;
-        }
+    pub fn peek(&self, distance: usize) -> Option<T> {
         self.contents.get(self.position + distance).cloned()
     }
 
@@ -59,11 +52,11 @@ impl<T: Clone + 'static> Stream<T> {
 
     pub fn until(&mut self, condition: &dyn Fn(T) -> bool, including: bool) -> Vec<T> {
         let mut res = vec![];
-        while !self.eof(false) && !condition(self.peek(false, 0).unwrap()) {
+        while !self.eof() && !condition(self.peek(0).unwrap()) {
             res.push(self.next());
         }
         if including {
-            if self.eof(false) {
+            if self.eof() {
                 self.yeet("Expected ';', found EOF".to_string());
                 unreachable!()
             }
@@ -76,7 +69,7 @@ impl<T: Clone + 'static> Stream<T> {
         self.next();
     }
 
-    pub fn yeet(&self, msg: String) {
+    pub fn yeet(&self, msg: String) -> ! {
         if TypeId::of::<T>() == TypeId::of::<char>() {
             panic!("{} ({}:{})", msg, self.row.unwrap(), self.col.unwrap())
         } else {
@@ -89,7 +82,7 @@ impl<T: Clone + 'static> Iterator for Stream<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.eof(false) {
+        if !self.eof() {
             return Some(self.next());
         }
         None
