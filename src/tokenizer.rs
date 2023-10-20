@@ -40,10 +40,8 @@ pub struct Position {
 
 pub fn tokenize(stream: &mut Stream<char>) -> Result<Stream<Token>, eyre::Report> {
     let mut res = vec![];
-    let mut token = read_next(stream);
-    while let Some(ref cur_token) = token {
-        res.push(cur_token.clone());
-        token = read_next(stream);
+    while let Some(ref token) = read_next(stream) {
+        res.push(token.clone());
     }
 
     Ok(res.into())

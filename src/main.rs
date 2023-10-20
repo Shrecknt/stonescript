@@ -1,10 +1,8 @@
-use std::fs;
-
+use std::{fs, path::PathBuf};
 use clap::Parser;
-use toml::Table;
+use crate::{config::ProjectConfig, tokenizer::tokenize};
 
-use crate::tokenizer::tokenize;
-
+mod config;
 mod stream;
 mod tokenizer;
 mod tokens;
@@ -15,11 +13,11 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Root of the program to compile
-    #[arg(short, long, default_value_t = String::from("./"))]
-    root: String,
+    #[arg(short, long, default_value = "./")]
+    root: PathBuf,
     /// Entrypoint file
-    #[arg(short, long, default_value_t = String::from("src/main.ss"))]
-    entrypoint: String,
+    #[arg(short, long, default_value = "src/main.ss")]
+    entrypoint: PathBuf,
 }
 
 fn main() -> Result<(), eyre::Report> {
@@ -28,27 +26,16 @@ fn main() -> Result<(), eyre::Report> {
     println!("Compiling with StoneScript version {}", VERSION);
     println!(
         "{{ root = '{}', entrypoint = '{}' }}",
-        args.root, args.entrypoint
+        args.root.display(),
+        args.entrypoint.display()
     );
 
-    let project_config = fs::read_to_string(format!("{}/stonescript.toml", args.root))?;
-    let project_config = project_config.parse::<Table>()?;
-    let package = project_config["package"]
-        .as_table()
-        .unwrap()
-        .iter()
-        .map(|f| (f.0.as_str(), f.1.as_str().unwrap()))
-        .collect::<Vec<(&str, &str)>>();
-    let dependencies = project_config["dependencies"]
-        .as_table()
-        .unwrap()
-        .iter()
-        .map(|f| (f.0.as_str(), f.1.as_str().unwrap()))
-        .collect::<Vec<(&str, &str)>>();
+    let project_config: ProjectConfig =
+        toml::from_str(&fs::read_to_string(args.root.join("stonescript.toml"))?)?;
 
-    println!("package = {:?}\ndependencies = {:?}", package, dependencies);
+    println!("package = {:?}\ndependencies = {:?}", project_config.package, project_config.dependencies);
 
-    let entrypoint_contents = fs::read_to_string(format!("{}/{}", args.root, args.entrypoint))?;
+    let entrypoint_contents = fs::read_to_string(args.root.join(args.entrypoint))?;
     let tokenized = tokenize(&mut entrypoint_contents.into())?;
 
     println!("Tokenized: {:?}", tokenized);
