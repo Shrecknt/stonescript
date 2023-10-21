@@ -40,11 +40,11 @@ pub enum IdentType {
 
 #[derive(Debug, Clone)]
 pub struct Ident {
-    span: Span,
-    token: IdentType,
+    pub span: Span,
+    pub token: IdentType,
 }
 
-impl<T: FusedIterator<Item = char>> Token<T> for Ident {
+impl<T: FusedIterator<Item = char> > Token<T> for Ident {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let start_pos = reader.position;
         let mut buffer = String::new();

@@ -44,20 +44,21 @@ struct Args {
     entrypoint: PathBuf,
 }
 
-fn debug_token_stream(stream: &Vec<TokenTree>) {
+fn debug_token_stream(stream: &Vec<TokenTree>, indent: usize) {
     for token in stream {
         match token {
             TokenTree::Group(group) => {
-                println!("{:?}", group);
+                println!("{}Group({:?})", " ".repeat(indent), group.delimiter);
+                debug_token_stream(&group.tokens, indent + 4)
             }
             TokenTree::Ident(ident) => {
-                println!("{:?}", ident);
+                println!("{}Ident({:?})", " ".repeat(indent), ident.token);
             }
             TokenTree::Literal(literal) => {
-                println!("{:?}", literal);
+                println!("{}Literal({:?})", " ".repeat(indent), literal.value);
             }
             TokenTree::Punct(punct) => {
-                println!("{:?}", punct);
+                println!("{}Punct({:?})", " ".repeat(indent), punct.token);
             }
         }
     }
@@ -79,12 +80,12 @@ fn main() -> Result<(), eyre::Report> {
     println!("package = {:?}\ndependencies = {:?}", project_config.package, project_config.dependencies);
 
     let entrypoint_contents = fs::read_to_string(args.root.join(args.entrypoint))?;
-    let tokenized = tokenise((&entrypoint_contents).into())?;
+    let tokenized = tokenise((&mut entrypoint_contents.chars()).into())?;
 
     // println!("Tokenized: {:?}", tokenized);
 
-    println!("Tokens:");
-    debug_token_stream(&tokenized);
+    println!("Tokens:\n");
+    debug_token_stream(&tokenized, 0);
 
     Ok(())
 }

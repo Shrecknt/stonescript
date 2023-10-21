@@ -15,11 +15,11 @@ pub enum LiteralType {
 
 #[derive(Debug, Clone)]
 pub struct Literal {
-    span: Span,
-    value: LiteralType,
+    pub span: Span,
+    pub value: LiteralType,
 }
 
-impl<T: FusedIterator<Item = char>> Token<T> for Literal {
+impl<T: FusedIterator<Item = char> > Token<T> for Literal {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let start_pos = reader.position;
 
@@ -27,6 +27,7 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
         if first_char == '"' {
             let mut buffer = String::new();
 
+            reader.advance();
             loop {
                 let char = reader.next().expect_char()?;
                 if char == '"' {

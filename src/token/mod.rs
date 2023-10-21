@@ -7,7 +7,7 @@ mod ident;
 mod literal;
 mod punct;
 
-pub trait Token<T: FusedIterator<Item = char>>
+pub trait Token<T: FusedIterator<Item = char> >
 where
     Self: Sized,
 {
@@ -36,7 +36,7 @@ pub enum TokenTree {
     Group(Group),
 }
 
-impl<T: FusedIterator<Item = char>> Token<T> for TokenTree {
+impl<T: FusedIterator<Item = char> > Token<T> for TokenTree {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let first_char = reader.peek().expect_char()?;
         if <Group as Token<T>>::valid_start(first_char) {
@@ -63,7 +63,7 @@ impl<T: FusedIterator<Item = char>> Token<T> for TokenTree {
     }
 }
 
-pub fn tokenise<T: FusedIterator<Item = char>>(mut reader: Stream<T>) -> ParseResult<Vec<TokenTree>> {
+pub fn tokenise<T: FusedIterator<Item = char> >(mut reader: Stream<T>) -> ParseResult<Vec<TokenTree>> {
     let mut tokens = vec![];
     
     loop {
@@ -88,7 +88,10 @@ pub fn tokenise<T: FusedIterator<Item = char>>(mut reader: Stream<T>) -> ParseRe
                 _ => ()
             }
 
-            tokens.push(TokenTree::parse(&mut reader)?);
+            tokens.push(match TokenTree::parse(&mut reader) {
+                Ok(token) => token,
+                Err(err) => {println!("{:#?}", tokens); return Err(err);}
+            });
         } else {
             break;
         }

@@ -109,17 +109,17 @@ define_punct!(
 
 #[derive(Debug, Clone, Copy)]
 pub struct Punct {
-    span: Span,
-    token: PunctToken,
+    pub span: Span,
+    pub token: PunctToken,
 }
 
-struct PunctResolver<'a, T: FusedIterator<Item = char>> {
-    stream: &'a mut Stream<T>,
+struct PunctResolver<'a, 'b, T: FusedIterator<Item = char>> {
+    stream: &'a mut Stream<'b, T>,
     start_pos: usize,
     depth: usize,
 }
 
-impl<'a, T: FusedIterator<Item = char>> PunctResolver<'a, T> {
+impl<'a, 'b, T: FusedIterator<Item = char> > PunctResolver<'a, 'b, T> {
     fn follow_tree(&mut self, tree: &PunctCharTree) -> ParseResult<Punct> {
         self.depth += 1;
 
@@ -149,7 +149,7 @@ impl<'a, T: FusedIterator<Item = char>> PunctResolver<'a, T> {
     }
 }
 
-impl<T: FusedIterator<Item = char>> Token<T> for Punct {
+impl<T: FusedIterator<Item = char> > Token<T> for Punct {
     fn parse(stream: &mut Stream<T>) -> ParseResult<Self> {
         PunctResolver {
             start_pos: stream.position,

@@ -39,6 +39,8 @@ impl<T: FusedIterator<Item = char>> Token<T> for Group {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let start_pos = reader.position;
 
+        // TODO: This is shit, it forces everything to be loaded into memory. Fix this.
+
         let open_char = reader.next().expect_char()?;
         let delimiter = Delimiter::from_open(open_char).ok_or(ParseError::UnexpectedToken(
             open_char.to_string(),
@@ -46,6 +48,7 @@ impl<T: FusedIterator<Item = char>> Token<T> for Group {
         ))?;
         let close_char = delimiter.to_close();
 
+        let mut buffer = String::new();
         let mut depth = 1;
         loop {
             let next_char = reader.next().expect_char()?;
@@ -57,13 +60,14 @@ impl<T: FusedIterator<Item = char>> Token<T> for Group {
                     break;
                 }
             }
+            buffer.push(next_char);
         }
 
         let width = reader.position - start_pos;
         Ok(Group {
             span: Span::new(start_pos, width),
             delimiter,
-            tokens: reader.until(width, tokenise)?,
+            tokens: tokenise((&mut buffer.chars()).into())?,
         })
     }
 
