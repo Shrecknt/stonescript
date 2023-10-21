@@ -104,7 +104,7 @@ define_punct!(
     Semicolon => ';',
     Comma => ',',
     Lambda => '-' '>',
-    Comment => '/' '/'
+    Comment => '#'
 );
 
 #[derive(Debug, Clone, Copy)]
