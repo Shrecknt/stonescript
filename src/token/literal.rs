@@ -44,6 +44,7 @@ impl<T: FusedIterator<Item = char> > Token<T> for Literal {
         } else if first_char == '-' || first_char.is_ascii_digit() {
             let mut buffer = String::from(first_char);
 
+            reader.advance();
             loop {
                 let char = reader.next().expect_char()?;
                 if char == '.' || char.is_ascii_digit() {
@@ -82,7 +83,7 @@ impl<T: FusedIterator<Item = char> > Token<T> for Literal {
                                     .parse()
                                     .map_err(|_| ParseError::UnexpectedToken(buffer, "double"))?,
                             ),
-                            _ => break,
+                            _ => {reader.position -= 1; break}
                         },
                     });
                 }
