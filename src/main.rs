@@ -1,25 +1,67 @@
-use std::fs;
-
+use std::{fs, path::PathBuf};
 use clap::Parser;
-use toml::Table;
+use crate::{config::ProjectConfig, token::{tokenise, TokenTree}};
+use thiserror::Error;
 
-use crate::tokenizer::tokenize;
-
+mod config;
 mod stream;
-mod tokenizer;
-mod tokens;
+mod token;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Unexpected end of file")]
+    UnexpectedEOF,
+    #[error("Unexpected {0:?} while parsing {1}")]
+    UnexpectedToken(String, &'static str)
+}
+
+pub type ParseResult<T> = Result<T, ParseError>;
+
+pub(crate) trait ExpectChar {
+    fn expect_char(self) -> ParseResult<char>;
+}
+
+impl ExpectChar for Option<char> {
+    fn expect_char(self) -> ParseResult<char> {
+        if let Some(char) = self {
+            Ok(char)
+        } else {
+            Err(ParseError::UnexpectedEOF)
+        }
+    }
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Root of the program to compile
-    #[arg(short, long, default_value_t = String::from("./"))]
-    root: String,
+    #[arg(short, long, default_value = "./")]
+    root: PathBuf,
     /// Entrypoint file
-    #[arg(short, long, default_value_t = String::from("src/main.ss"))]
-    entrypoint: String,
+    #[arg(short, long, default_value = "src/main.ss")]
+    entrypoint: PathBuf,
+}
+
+fn debug_token_stream(stream: &Vec<TokenTree>, indent: usize) {
+    for token in stream {
+        match token {
+            TokenTree::Group(group) => {
+                println!("{}Group({:?})", " ".repeat(indent), group.delimiter);
+                debug_token_stream(&group.tokens, indent + 4)
+            }
+            TokenTree::Ident(ident) => {
+                println!("{}Ident({:?})", " ".repeat(indent), ident.token);
+            }
+            TokenTree::Literal(literal) => {
+                println!("{}Literal({:?})", " ".repeat(indent), literal.value);
+            }
+            TokenTree::Punct(punct) => {
+                println!("{}Punct({:?})", " ".repeat(indent), punct.token);
+            }
+        }
+    }
 }
 
 fn main() -> Result<(), eyre::Report> {
@@ -28,38 +70,22 @@ fn main() -> Result<(), eyre::Report> {
     println!("Compiling with StoneScript version {}", VERSION);
     println!(
         "{{ root = '{}', entrypoint = '{}' }}",
-        args.root, args.entrypoint
+        args.root.display(),
+        args.entrypoint.display()
     );
 
-    let project_config = fs::read_to_string(format!("{}/stonescript.toml", args.root))?;
-    let project_config = project_config.parse::<Table>()?;
-    let package = project_config["package"]
-        .as_table()
-        .unwrap()
-        .iter()
-        .map(|f| (f.0.as_str(), f.1.as_str().unwrap()))
-        .collect::<Vec<(&str, &str)>>();
-    let dependencies = project_config["dependencies"]
-        .as_table()
-        .unwrap()
-        .iter()
-        .map(|f| (f.0.as_str(), f.1.as_str().unwrap()))
-        .collect::<Vec<(&str, &str)>>();
+    let project_config: ProjectConfig =
+        toml::from_str(&fs::read_to_string(args.root.join("stonescript.toml"))?)?;
 
-    println!("package = {:?}\ndependencies = {:?}", package, dependencies);
+    println!("package = {:?}\ndependencies = {:?}", project_config.package, project_config.dependencies);
 
-    let entrypoint_contents = fs::read_to_string(format!("{}/{}", args.root, args.entrypoint))?;
-    let tokenized = tokenize(&mut entrypoint_contents.into())?;
+    let entrypoint_contents = fs::read_to_string(args.root.join(args.entrypoint))?;
+    let tokenized = tokenise((&mut entrypoint_contents.chars()).into())?;
 
-    println!("Tokenized: {:?}", tokenized);
+    // println!("Tokenized: {:?}", tokenized);
 
-    println!("Tokens:");
-    for token in tokenized {
-        println!(
-            "[{:?} - {:?}] {}",
-            token.token_type, token.specific, token.value
-        );
-    }
+    println!("Tokens:\n");
+    debug_token_stream(&tokenized, 0);
 
     Ok(())
 }

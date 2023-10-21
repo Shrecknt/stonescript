@@ -9,6 +9,8 @@ edition = "2021"
 clap = { version = "4.4.6", features = ["derive"] }
 eyre = "0.6.8"
 lazy_static = "1.4.0"
-log = "0.4.20"
+semver = "1.0.20"
+serde = { version = "1.0.189", features = ["derive"] }
 thiserror = "1.0.50"
 toml = "0.8.2"
+unicode-ident = "1.0.12"

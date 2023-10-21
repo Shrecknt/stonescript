@@ -1,136 +1,57 @@
-use std::any::TypeId;
+use std::{iter::FusedIterator, str::Chars};
 
-#[derive(Debug, Clone)]
-pub struct Stream<T> {
-    pub contents: Vec<T>,
+#[derive(Debug)]
+pub struct Stream<'a, T: FusedIterator<Item = char> > {
+    iterator: &'a mut T,
+    buffer: Vec<char>,
     pub position: usize,
-    pub left_col: Option<u64>,
-    pub row: Option<u64>,
-    pub col: Option<u64>,
-    pub is_chars: bool,
 }
 
-impl<T: Clone + 'static> Stream<T> {
-    pub fn new() -> Self {
+impl<'a, T: FusedIterator<Item = char> > Stream<'a, T> {
+    pub fn new(iterator: &'a mut T) -> Self {
         Self {
-            contents: Vec::new(),
+            iterator,
+            buffer: vec![],
             position: 0,
-            left_col: None,
-            row: None,
-            col: None,
-            is_chars: false,
         }
     }
 
-    pub fn eof(&self, throw_error: bool) -> bool {
-        let end_of_file = self.position >= self.contents.len();
-        if throw_error && end_of_file {
-            self.yeet("Reached end of queue".to_string());
-        }
-        end_of_file
-    }
-
-    pub fn peek(&self, throw_error: bool, distance: usize) -> Option<T> {
-        if self.eof(throw_error) {
-            return None;
-        }
-        self.contents.get(self.position + distance).cloned()
-    }
-
-    pub fn next(&mut self) -> T {
-        let item = self.contents[self.position].clone();
-        self.position += 1;
-        if self.is_chars {
-            let item = unsafe { *std::mem::transmute::<&T, &char>(&item) };
-            // let item = (Box::new(item.clone()) as Box<dyn Any>)
-            //     .downcast::<char>()
-            //     .unwrap();
-            self.col = Some(self.col.unwrap() + 1);
-            if item == '\n' {
-                self.row = Some(self.row.unwrap() + 1);
-                self.col = self.left_col;
-            }
-            // the transmuted `item` should be dropped before the original one
-            // this code isn't needed for that but I'm trying to make it as explicit as possible
-            drop(item);
-        }
-        item
-    }
-
-    pub fn until(&mut self, condition: &dyn Fn(T) -> bool, including: bool) -> Vec<T> {
-        let mut res = vec![];
-        while !self.eof(false) && !condition(self.peek(false, 0).unwrap()) {
-            res.push(self.next());
-        }
-        if including {
-            if self.eof(false) {
-                self.yeet("Expected ';', found EOF".to_string());
-                unreachable!()
-            }
-            self.skip()
-        }
-        res
-    }
-
-    pub fn skip(&mut self) {
-        self.next();
-    }
-
-    pub fn yeet(&self, msg: String) {
-        if TypeId::of::<T>() == TypeId::of::<char>() {
-            panic!("{} ({}:{})", msg, self.row.unwrap(), self.col.unwrap())
+    pub fn peek(&mut self) -> Option<char> {
+        if let Some(char) = self.buffer.get(self.position) {
+            Some(*char)
         } else {
-            panic!("{} ({})", msg, self.position)
+            if let Some(char) = self.iterator.next() {
+                self.buffer.push(char);
+                self.peek()
+            } else {
+                None
+            }
         }
+    }
+
+    pub fn next(&mut self) -> Option<char> {
+        let ret = self.peek();
+        self.advance();
+        ret
+    }
+
+    pub fn advance(&mut self) {
+        self.position += 1;
     }
 }
 
-impl<T: Clone + 'static> Iterator for Stream<T> {
-    type Item = T;
+impl<'a, T: FusedIterator<Item = char> > Iterator for Stream<'a, T> {
+    type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.eof(false) {
-            return Some(self.next());
-        }
-        None
+        self.next()
     }
 }
 
-impl From<String> for Stream<char> {
-    fn from(value: String) -> Self {
-        Self {
-            contents: value.chars().into_iter().collect(),
-            position: 0,
-            left_col: Some(0),
-            row: Some(1),
-            col: Some(0),
-            is_chars: true,
-        }
-    }
-}
+impl<'a, T: FusedIterator<Item = char> > FusedIterator for Stream<'a, T> {}
 
-impl<T> From<Vec<T>> for Stream<T> {
-    fn from(value: Vec<T>) -> Self {
-        Self {
-            contents: value,
-            position: 0,
-            left_col: None,
-            row: None,
-            col: None,
-            is_chars: false,
-        }
-    }
-}
-
-impl<T> From<&mut dyn Iterator<Item = T>> for Stream<T> {
-    fn from(value: &mut dyn Iterator<Item = T>) -> Self {
-        Self {
-            contents: value.collect::<Vec<T>>(),
-            position: 0,
-            left_col: None,
-            row: None,
-            col: None,
-            is_chars: false,
-        }
+impl<'a> From<&'a mut Chars<'a>> for Stream<'a, Chars<'a>> {
+    fn from(value: &'a mut Chars<'a>) -> Self {
+        Stream::new(value)
     }
 }
