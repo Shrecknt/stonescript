@@ -13,3 +13,4 @@ semver = "1.0.20"
 serde = { version = "1.0.189", features = ["derive"] }
 thiserror = "1.0.50"
 toml = "0.8.2"
+unicode-ident = "1.0.12"

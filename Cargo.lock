@@ -222,6 +222,7 @@ dependencies = [
  "serde",
  "thiserror",
  "toml",
+ "unicode-ident",
 ]
 
 [[package]]
