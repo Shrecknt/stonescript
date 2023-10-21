@@ -1,4 +1,9 @@
-use self::{group::Group, ident::Ident, literal::Literal, punct::Punct};
+use self::{
+    group::Group,
+    ident::Ident,
+    literal::Literal,
+    punct::{Punct, PunctToken},
+};
 use crate::{stream::Stream, ExpectChar, ParseError, ParseResult};
 use std::iter::FusedIterator;
 
@@ -7,7 +12,7 @@ mod ident;
 mod literal;
 mod punct;
 
-pub trait Token<T: FusedIterator<Item = char> >
+pub trait Token<T: FusedIterator<Item = char>>
 where
     Self: Sized,
 {
@@ -36,7 +41,7 @@ pub enum TokenTree {
     Group(Group),
 }
 
-impl<T: FusedIterator<Item = char> > Token<T> for TokenTree {
+impl<T: FusedIterator<Item = char>> Token<T> for TokenTree {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let first_char = reader.peek().expect_char()?;
         if <Group as Token<T>>::valid_start(first_char) {
@@ -63,35 +68,33 @@ impl<T: FusedIterator<Item = char> > Token<T> for TokenTree {
     }
 }
 
-pub fn tokenise<T: FusedIterator<Item = char> >(mut reader: Stream<T>) -> ParseResult<Vec<TokenTree>> {
+pub fn tokenise<T: FusedIterator<Item = char>>(
+    mut reader: Stream<T>,
+) -> ParseResult<Vec<TokenTree>> {
     let mut tokens = vec![];
-    
-    loop {
+
+    'main: loop {
         if let Some(next_char) = reader.peek() {
-            match next_char {
-                ' ' => {
-                    reader.advance();
-                    continue;
-                }
-                '\n' => {
-                    reader.advance();
-                    continue;
-                }
-                '\r' => {
-                    reader.advance();
-                    if let Some('\n') = reader.next() {
-                        continue;
-                    } else {
-                        return Err(ParseError::UnexpectedToken(next_char.to_string(), "tokens"))
-                    }
-                }
-                _ => ()
+            if next_char.is_whitespace() {
+                reader.advance();
+                continue;
             }
 
-            tokens.push(match TokenTree::parse(&mut reader) {
-                Ok(token) => token,
-                Err(err) => {println!("{:#?}", tokens); return Err(err);}
-            });
+            match TokenTree::parse(&mut reader)? {
+                TokenTree::Punct(Punct {
+                    span: _,
+                    token: PunctToken::Comment,
+                }) => 'comment: loop {
+                    if let Some(next_char) = reader.next() {
+                        if next_char == '\r' || next_char == '\n' {
+                            break 'comment;
+                        }
+                    } else {
+                        break 'main;
+                    }
+                },
+                other => tokens.push(other),
+            }
         } else {
             break;
         }
