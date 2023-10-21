@@ -54,7 +54,15 @@ fn read_next(stream: &mut Stream<char>) -> Option<Token> {
     if stream.eof(false) {
         return None;
     }
-    let char = stream.peek(false, 0).unwrap();
+    let mut char = stream.peek(false, 0).unwrap();
+    if char == '#' {
+        read_comment(stream);
+        skip_whitespace(stream);
+        if stream.eof(false) {
+            return None;
+        }
+        char = stream.peek(false, 0).unwrap();
+    }
     if char == '"' {
         return Some(read_string(stream));
     }
@@ -87,6 +95,12 @@ fn skip_whitespace(stream: &mut Stream<char>) {
         }
         return;
     }
+}
+
+fn read_comment(stream: &mut Stream<char>) {
+    stream.skip();
+    let _chars = stream.until(&|ch| ch == '\n', false);
+    // maybe do something with the comments later, but for now, ignore it
 }
 
 #[inline]

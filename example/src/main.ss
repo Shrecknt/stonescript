@@ -1,3 +1,5 @@
+# This is a comment
+
 function main(): signed_int {
     /say hi;
 
