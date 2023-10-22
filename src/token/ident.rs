@@ -21,6 +21,7 @@ macro_rules! define_keyword {
 }
 
 define_keyword!(
+    Static => "static",
     For => "for",
     While => "while",
     Let => "let",
@@ -44,7 +45,7 @@ pub struct Ident {
     pub token: IdentType,
 }
 
-impl<T: FusedIterator<Item = char> > Token<T> for Ident {
+impl<T: FusedIterator<Item = char>> Token<T> for Ident {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let start_pos = reader.position;
         let mut buffer = String::new();

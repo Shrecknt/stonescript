@@ -73,30 +73,26 @@ pub fn tokenise<T: FusedIterator<Item = char>>(
 ) -> ParseResult<Vec<TokenTree>> {
     let mut tokens = vec![];
 
-    'main: loop {
-        if let Some(next_char) = reader.peek() {
-            if next_char.is_whitespace() {
-                reader.advance();
-                continue;
-            }
+    'main: while let Some(next_char) = reader.peek() {
+        if next_char.is_whitespace() {
+            reader.advance();
+            continue;
+        }
 
-            match TokenTree::parse(&mut reader)? {
-                TokenTree::Punct(Punct {
-                    span: _,
-                    token: PunctToken::Comment,
-                }) => 'comment: loop {
-                    if let Some(next_char) = reader.next() {
-                        if next_char == '\r' || next_char == '\n' {
-                            break 'comment;
-                        }
-                    } else {
-                        break 'main;
+        match TokenTree::parse(&mut reader)? {
+            TokenTree::Punct(Punct {
+                span: _,
+                token: PunctToken::Comment,
+            }) => 'comment: loop {
+                if let Some(next_char) = reader.next() {
+                    if next_char == '\r' || next_char == '\n' {
+                        break 'comment;
                     }
-                },
-                other => tokens.push(other),
-            }
-        } else {
-            break;
+                } else {
+                    break 'main;
+                }
+            },
+            other => tokens.push(other),
         }
     }
 

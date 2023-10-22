@@ -40,7 +40,6 @@ impl<'de> Visitor<'de> for DependencyVisitor {
     {
         Ok(Dependency {
             version: VersionReq::parse(value).map_err(E::custom)?,
-            ..Default::default()
         })
     }
 

@@ -19,7 +19,7 @@ pub struct Literal {
     pub value: LiteralType,
 }
 
-impl<T: FusedIterator<Item = char> > Token<T> for Literal {
+impl<T: FusedIterator<Item = char>> Token<T> for Literal {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let start_pos = reader.position;
 
@@ -83,7 +83,10 @@ impl<T: FusedIterator<Item = char> > Token<T> for Literal {
                                     .parse()
                                     .map_err(|_| ParseError::UnexpectedToken(buffer, "double"))?,
                             ),
-                            _ => {reader.position -= 1; break}
+                            _ => {
+                                reader.position -= 1;
+                                break;
+                            }
                         },
                     });
                 }

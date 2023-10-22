@@ -104,6 +104,8 @@ define_punct!(
     Semicolon => ';',
     Comma => ',',
     Lambda => '-' '>',
+    Selector => '@',
+    Relative => '~',
     Comment => '#'
 );
 
@@ -119,7 +121,7 @@ struct PunctResolver<'a, 'b, T: FusedIterator<Item = char>> {
     depth: usize,
 }
 
-impl<'a, 'b, T: FusedIterator<Item = char> > PunctResolver<'a, 'b, T> {
+impl<'a, 'b, T: FusedIterator<Item = char>> PunctResolver<'a, 'b, T> {
     fn follow_tree(&mut self, tree: &PunctCharTree) -> ParseResult<Punct> {
         self.depth += 1;
 
@@ -149,7 +151,7 @@ impl<'a, 'b, T: FusedIterator<Item = char> > PunctResolver<'a, 'b, T> {
     }
 }
 
-impl<T: FusedIterator<Item = char> > Token<T> for Punct {
+impl<T: FusedIterator<Item = char>> Token<T> for Punct {
     fn parse(stream: &mut Stream<T>) -> ParseResult<Self> {
         PunctResolver {
             start_pos: stream.position,

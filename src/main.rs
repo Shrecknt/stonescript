@@ -1,6 +1,9 @@
-use std::{fs, path::PathBuf};
+use crate::{
+    config::ProjectConfig,
+    token::{tokenise, TokenTree},
+};
 use clap::Parser;
-use crate::{config::ProjectConfig, token::{tokenise, TokenTree}};
+use std::{fs, path::PathBuf};
 use thiserror::Error;
 
 mod config;
@@ -14,7 +17,7 @@ pub enum ParseError {
     #[error("Unexpected end of file")]
     UnexpectedEOF,
     #[error("Unexpected {0:?} while parsing {1}")]
-    UnexpectedToken(String, &'static str)
+    UnexpectedToken(String, &'static str),
 }
 
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -77,7 +80,10 @@ fn main() -> Result<(), eyre::Report> {
     let project_config: ProjectConfig =
         toml::from_str(&fs::read_to_string(args.root.join("stonescript.toml"))?)?;
 
-    println!("package = {:?}\ndependencies = {:?}", project_config.package, project_config.dependencies);
+    println!(
+        "package = {:?}\ndependencies = {:?}",
+        project_config.package, project_config.dependencies
+    );
 
     let entrypoint_contents = fs::read_to_string(args.root.join(args.entrypoint))?;
     let tokenized = tokenise((&mut entrypoint_contents.chars()).into())?;

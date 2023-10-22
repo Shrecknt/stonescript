@@ -1,4 +1,4 @@
-use super::{Span, Token, TokenTree, tokenise};
+use super::{tokenise, Span, Token, TokenTree};
 use crate::{stream::Stream, ExpectChar, ParseError, ParseResult};
 use std::iter::FusedIterator;
 
@@ -19,7 +19,7 @@ impl Delimiter {
         }
     }
 
-    fn to_close(&self) -> char {
+    fn to_close(self) -> char {
         match self {
             Delimiter::Brace => '}',
             Delimiter::Bracket => ']',
@@ -42,10 +42,8 @@ impl<T: FusedIterator<Item = char>> Token<T> for Group {
         // TODO: This is shit, it forces everything to be loaded into memory. Fix this.
 
         let open_char = reader.next().expect_char()?;
-        let delimiter = Delimiter::from_open(open_char).ok_or(ParseError::UnexpectedToken(
-            open_char.to_string(),
-            "group",
-        ))?;
+        let delimiter = Delimiter::from_open(open_char)
+            .ok_or(ParseError::UnexpectedToken(open_char.to_string(), "group"))?;
         let close_char = delimiter.to_close();
 
         let mut buffer = String::new();

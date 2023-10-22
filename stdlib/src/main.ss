@@ -1,11 +1,12 @@
 static let RETURN_VALUE: int;
 
+# TODO: initialize scoreboard, create pointer armor stand
 # The pointer is an armor stand named "__stdlib__pointer"
 
 static function move_pointer_to(address: int) {
     # TODO
     static let address: int = address;
-    /execute store result entity @e[tag=pointer] Pos[0] double 1 run scoreboard players get __stdlib__pointer_address ss_global;
+    # /execute store result entity @e[tag=pointer] Pos[0] double 1 run scoreboard players get __stdlib__pointer_address ss_global;
 }
 
 static function read_pointer_value() {
