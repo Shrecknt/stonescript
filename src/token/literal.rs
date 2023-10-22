@@ -36,14 +36,12 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
                 if escaped {
                     buffer.push(char);
                     escaped = false;
+                } else if char == '\\' {
+                    escaped = true;
+                } else if char == '"' {
+                    break;
                 } else {
-                    if char == '\\' {
-                        escaped = true;
-                    } else if char == '"' {
-                        break;
-                    } else {
-                        buffer.push(char);
-                    }
+                    buffer.push(char);
                 }
             }
 
@@ -65,14 +63,12 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
                     }
                     buffer.push(char);
                     escaped = false;
+                } else if char == '\\' {
+                    escaped = true;
+                } else if char == ';' {
+                    break;
                 } else {
-                    if char == '\\' {
-                        escaped = true;
-                    } else if char == ';' {
-                        break;
-                    } else {
-                        buffer.push(char);
-                    }
+                    buffer.push(char);
                 }
             }
 
