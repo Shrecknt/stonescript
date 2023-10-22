@@ -11,6 +11,7 @@ pub enum LiteralType {
     Float(f32),
     Double(f64),
     String(String),
+    Command(String),
 }
 
 #[derive(Debug, Clone)]
@@ -27,19 +28,57 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
         if first_char == '"' {
             let mut buffer = String::new();
 
+            let mut escaped = false;
+
             reader.advance();
             loop {
                 let char = reader.next().expect_char()?;
-                if char == '"' {
-                    break;
-                } else {
+                if escaped {
                     buffer.push(char);
+                    escaped = false;
+                } else {
+                    if char == '\\' {
+                        escaped = true;
+                    } else if char == '"' {
+                        break;
+                    } else {
+                        buffer.push(char);
+                    }
                 }
             }
 
             Ok(Literal {
                 span: Span::new(start_pos, buffer.len() + 2),
                 value: LiteralType::String(buffer),
+            })
+        } else if first_char == '$' {
+            let mut buffer = String::new();
+
+            let mut escaped = false;
+
+            reader.advance();
+            loop {
+                let char = reader.next().expect_char()?;
+                if escaped {
+                    if char != ';' {
+                        buffer.push('\\');
+                    }
+                    buffer.push(char);
+                    escaped = false;
+                } else {
+                    if char == '\\' {
+                        escaped = true;
+                    } else if char == ';' {
+                        break;
+                    } else {
+                        buffer.push(char);
+                    }
+                }
+            }
+
+            Ok(Literal {
+                span: Span::new(start_pos, buffer.len() + 2),
+                value: LiteralType::Command(buffer),
             })
         } else if first_char == '-' || first_char.is_ascii_digit() {
             let mut buffer = String::from(first_char);
@@ -109,6 +148,6 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
     }
 
     fn valid_start(start: char) -> bool {
-        start == '"' || start == '-' || start.is_ascii_digit()
+        start == '"' || start == '$' || start == '-' || start.is_ascii_digit()
     }
 }

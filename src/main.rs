@@ -42,6 +42,9 @@ struct Args {
     /// Root of the program to compile
     #[arg(short, long, default_value = "./")]
     root: PathBuf,
+    /// Build directory for the datapack
+    #[arg(short, long, default_value = "./target")]
+    target: PathBuf,
     /// Entrypoint file
     #[arg(short, long, default_value = "src/main.ss")]
     entrypoint: PathBuf,
@@ -72,8 +75,9 @@ fn main() -> Result<(), eyre::Report> {
 
     println!("Compiling with StoneScript version {}", VERSION);
     println!(
-        "{{ root = '{}', entrypoint = '{}' }}",
+        "{{ root = '{}', target = '{}', entrypoint = '{}' }}",
         args.root.display(),
+        args.target.display(),
         args.entrypoint.display()
     );
 

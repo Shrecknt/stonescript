@@ -6,7 +6,7 @@ static let RETURN_VALUE: int;
 static function move_pointer_to(address: int) {
     # TODO
     static let address: int = address;
-    # /execute store result entity @e[tag=pointer] Pos[0] double 1 run scoreboard players get __stdlib__pointer_address ss_global;
+    $execute store result entity @e[tag=pointer] Pos[0] double 1 run scoreboard players get __stdlib__pointer_address ss_global;
 }
 
 static function read_pointer_value() {
@@ -36,5 +36,5 @@ static function read(address: int): int {
 static function write(address: int, data: int) {
     # TODO
     move_pointer_to(address);
-    /execute at @e[tag=pointer] run setblock ~ ~ ~ stone;
+    $execute at @e[tag=pointer] run setblock ~ ~ ~ stone;
 }
