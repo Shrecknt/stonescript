@@ -1,4 +1,4 @@
-function main(): signed_int {
+function main(): int {
     /say hi;
 
     for (let i = 0; i < 10; i++) {
@@ -8,4 +8,9 @@ function main(): signed_int {
     # ASDF
 
     return 0;
+}
+
+function unholy_tomfoolery(): int {
+    test = 5;
+    let test: int;
 }

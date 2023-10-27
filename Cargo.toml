@@ -14,3 +14,4 @@ serde = { version = "1.0.189", features = ["derive"] }
 thiserror = "1.0.50"
 toml = "0.8.2"
 unicode-ident = "1.0.12"
+uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }

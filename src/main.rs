@@ -43,7 +43,7 @@ struct Args {
     #[arg(short, long, default_value = "./")]
     root: PathBuf,
     /// Build directory for the datapack
-    #[arg(short, long, default_value = "./target")]
+    #[arg(short, long, default_value = "target")]
     target: PathBuf,
     /// Entrypoint file
     #[arg(short, long, default_value = "src/main.ss")]
@@ -84,6 +84,9 @@ fn main() -> Result<(), eyre::Report> {
     let project_config: ProjectConfig =
         toml::from_str(&fs::read_to_string(args.root.join("stonescript.toml"))?)?;
 
+    let target_dir = args.root.join(args.target);
+    println!("{{ target_dir = '{}' }}", target_dir.display());
+
     println!(
         "package = {:?}\ndependencies = {:?}",
         project_config.package, project_config.dependencies
@@ -91,8 +94,6 @@ fn main() -> Result<(), eyre::Report> {
 
     let entrypoint_contents = fs::read_to_string(args.root.join(args.entrypoint))?;
     let tokenized = tokenise((&mut entrypoint_contents.chars()).into())?;
-
-    // println!("Tokenized: {:?}", tokenized);
 
     println!("Tokens:\n");
     debug_token_stream(&tokenized, 0);
