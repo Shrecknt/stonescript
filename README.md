@@ -1,8 +1,8 @@
 # StoneScript
 
-A programming language that compiles to Minecraft datapacks
+A programming language that compiles to Minecraft datapacks.
 
-Thank you [PyPylia](https://github.com/PyPylia) for making my code less bad
+Thank you [PyPylia](https://github.com/PyPylia) for making my code less bad.
 
 ## The General Idea
 
