@@ -1,4 +1,5 @@
 use crate::{
+    ast::parse::parse,
     config::ProjectConfig,
     token::{tokenise, TokenTree},
 };
@@ -6,6 +7,7 @@ use clap::Parser;
 use std::{fs, path::PathBuf};
 use thiserror::Error;
 
+mod ast;
 mod config;
 mod stream;
 mod token;
@@ -18,6 +20,14 @@ pub enum ParseError {
     UnexpectedEOF,
     #[error("Unexpected {0:?} while parsing {1}")]
     UnexpectedToken(String, &'static str),
+}
+
+#[derive(Debug, Error)]
+pub enum SyntaxError {
+    #[error("Unexpected token {0:?} while generating AST")]
+    UnexpectedToken(TokenTree),
+    #[error("Unexpected end of file")]
+    EarlyEof,
 }
 
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -97,6 +107,11 @@ fn main() -> Result<(), eyre::Report> {
 
     println!("Tokens:\n");
     debug_token_stream(&tokenized, 0);
+
+    let ast = parse(tokenized, &vec![])?;
+    for node in ast {
+        println!("{:?}", node);
+    }
 
     Ok(())
 }

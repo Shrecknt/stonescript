@@ -7,10 +7,10 @@ use self::{
 use crate::{stream::Stream, ExpectChar, ParseError, ParseResult};
 use std::iter::FusedIterator;
 
-mod group;
-mod ident;
-mod literal;
-mod punct;
+pub mod group;
+pub mod ident;
+pub mod literal;
+pub mod punct;
 
 pub trait Token<T: FusedIterator<Item = char>>
 where

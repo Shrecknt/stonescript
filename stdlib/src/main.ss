@@ -1,16 +1,16 @@
-static let RETURN_VALUE: int;
+static RETURN_VALUE: int;
 
 # TODO: initialize scoreboard, create pointer armor stand
 # The pointer is an armor stand named "__stdlib__pointer"
 
 static function move_pointer_to(address: int) {
     # TODO
-    static let address: int = address;
+    static address: int = address;
     $execute store result entity @e[tag=pointer] Pos[0] double 1 run scoreboard players get __stdlib__pointer_address ss_global;
 }
 
 static function read_pointer_value() {
-    static let pointer_value: int;
+    static pointer_value: int;
     # read data at the pointer's location into `pointer_value`
 }
 
@@ -26,7 +26,7 @@ static function dealloc(address: int, size: int) {
 
 # Reads the value at the address `address` into the `return` register
 static function read(address: int): int {
-    static let pointer_value: int;
+    static pointer_value: int;
     move_pointer_to(address);
     read_pointer_value();
     RETURN_VALUE = pointer_value;
