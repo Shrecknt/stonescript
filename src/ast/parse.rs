@@ -1,6 +1,6 @@
 use crate::token::{
-    ident::{Ident, IdentType, Keyword},
-    punct::{self, Punct, PunctToken},
+    ident::{IdentType, Keyword},
+    punct::PunctToken,
     TokenTree,
 };
 use crate::SyntaxError;
@@ -10,6 +10,7 @@ pub struct TokenStream {
     pub position: usize,
 }
 
+#[allow(unused)]
 impl TokenStream {
     pub fn new(tokens: Vec<TokenTree>) -> Self {
         Self {
@@ -37,6 +38,7 @@ impl TokenStream {
     }
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub enum AstNode {
     Function {
@@ -65,26 +67,30 @@ pub enum AstNode {
 #[derive(Debug)]
 pub enum Type {
     Void,
+    Unknown,
 }
 
 impl From<String> for Type {
     fn from(value: String) -> Self {
-        todo!()
+        match value.as_str() {
+            "void" => Self::Void,
+            _ => Self::Unknown,
+        }
     }
 }
 
-pub fn parse(token_tree: Vec<TokenTree>, scope: &Vec<String>) -> Result<Vec<AstNode>, SyntaxError> {
+pub fn parse(token_tree: Vec<TokenTree>, scope: &[String]) -> Result<Vec<AstNode>, SyntaxError> {
     let mut token_tree = TokenStream::new(token_tree);
-    let mut scope = scope.clone();
+    #[allow(unused_mut)]
+    let mut scope = scope.to_owned();
     let mut project_scope = vec![];
 
     let mut token;
     loop {
-        token = match &token_tree.peek() {
-            Some(token) => token.clone(),
-            None => {
-                break;
-            }
+        token = if let Some(token) = &token_tree.peek() {
+            token.clone()
+        } else {
+            break;
         };
 
         match token {
@@ -95,19 +101,15 @@ pub fn parse(token_tree: Vec<TokenTree>, scope: &Vec<String>) -> Result<Vec<AstN
             }
             TokenTree::Ident(ident) => {
                 println!("{:?}", ident);
-                match ident.token {
-                    IdentType::Keyword(keyword) => match keyword {
-                        Keyword::Static => {
-                            token_tree.advance();
-                            next_static(&mut token_tree, &mut scope.clone())?;
-                        }
-                        _ => {
-                            panic!("what 2 {:?}", keyword);
-                        }
-                    },
-                    _ => {
-                        panic!("what 1 {:?}", ident.token);
+                if let IdentType::Keyword(keyword) = ident.token {
+                    if let Keyword::Static = keyword {
+                        token_tree.advance();
+                        next_static(&mut token_tree, &scope)?;
+                    } else {
+                        panic!("what 2 {:?}", keyword);
                     }
+                } else {
+                    panic!("what 1 {:?}", ident.token);
                 }
             }
             _ => {
@@ -119,70 +121,83 @@ pub fn parse(token_tree: Vec<TokenTree>, scope: &Vec<String>) -> Result<Vec<AstN
     Ok(project_scope)
 }
 
-pub fn next_static(
-    token_tree: &mut TokenStream,
-    scope: &mut Vec<String>,
-) -> Result<AstNode, SyntaxError> {
-    let ident = match &token_tree.next() {
-        Some(token) => match token {
-            TokenTree::Ident(ident) => ident.clone(),
-            _ => return Err(SyntaxError::UnexpectedToken(token.clone())),
-        },
-        None => return Err(SyntaxError::EarlyEof),
+pub fn next_static(token_tree: &mut TokenStream, scope: &[String]) -> Result<AstNode, SyntaxError> {
+    let ident = if let Some(token) = &token_tree.next() {
+        if let TokenTree::Ident(ident) = token {
+            ident.clone()
+        } else {
+            return Err(SyntaxError::UnexpectedToken(token.clone()));
+        }
+    } else {
+        return Err(SyntaxError::EarlyEof);
     };
 
     match &ident.token {
-        IdentType::Keyword(keyword) => match keyword {
-            Keyword::Function => {
-                let function_name = match token_tree.next() {
-                    Some(token) => match token.clone() {
-                        TokenTree::Ident(ident) => match ident.token {
-                            IdentType::VariableName(variable_name) => variable_name,
-                            _ => return Err(SyntaxError::UnexpectedToken(token)),
-                        },
-                        _ => return Err(SyntaxError::UnexpectedToken(token)),
-                    },
-                    None => return Err(SyntaxError::EarlyEof),
+        IdentType::Keyword(keyword) => {
+            if let Keyword::Function = keyword {
+                let function_name = if let Some(token) = token_tree.next() {
+                    if let TokenTree::Ident(ident) = token.clone() {
+                        if let IdentType::VariableName(variable_name) = ident.token {
+                            variable_name
+                        } else {
+                            return Err(SyntaxError::UnexpectedToken(token));
+                        }
+                    } else {
+                        return Err(SyntaxError::UnexpectedToken(token));
+                    }
+                } else {
+                    return Err(SyntaxError::EarlyEof);
                 }
                 .to_string();
-                let arguments = match token_tree.next() {
-                    Some(token) => match token {
-                        TokenTree::Group(group) => parse(group.tokens, &scope.clone())?,
-                        _ => return Err(SyntaxError::UnexpectedToken(token)),
-                    },
-                    None => return Err(SyntaxError::EarlyEof),
+                let arguments = if let Some(token) = token_tree.next() {
+                    if let TokenTree::Group(group) = token {
+                        parse(group.tokens, scope)?
+                    } else {
+                        return Err(SyntaxError::UnexpectedToken(token));
+                    }
+                } else {
+                    return Err(SyntaxError::EarlyEof);
                 };
-                let mut token = match token_tree.next() {
-                    Some(token) => token,
-                    None => return Err(SyntaxError::EarlyEof),
+                let mut token = if let Some(token) = token_tree.next() {
+                    token
+                } else {
+                    return Err(SyntaxError::EarlyEof);
                 };
                 let mut return_type = Type::Void;
                 if let TokenTree::Punct(punct) = token {
                     if let PunctToken::Colon = punct.token {
-                        return_type = match Type::try_from(match token_tree.next() {
-                            Some(token) => match token.clone() {
-                                TokenTree::Ident(ident) => match ident.token {
-                                    IdentType::VariableName(variable_name) => variable_name,
-                                    _ => return Err(SyntaxError::UnexpectedToken(token)),
-                                },
-                                _ => return Err(SyntaxError::UnexpectedToken(token)),
-                            },
-                            None => return Err(SyntaxError::EarlyEof),
+                        return_type = if let Ok(variable_type) = Type::try_from({
+                            if let Some(token) = token_tree.next() {
+                                if let TokenTree::Ident(ident) = token.clone() {
+                                    if let IdentType::VariableName(variable_name) = ident.token {
+                                        variable_name
+                                    } else {
+                                        return Err(SyntaxError::UnexpectedToken(token));
+                                    }
+                                } else {
+                                    return Err(SyntaxError::UnexpectedToken(token));
+                                }
+                            } else {
+                                return Err(SyntaxError::EarlyEof);
+                            }
                         }) {
-                            Ok(variable_type) => variable_type,
-                            Err(_) => return Err(SyntaxError::UnexpectedToken(token)),
+                            variable_type
+                        } else {
+                            return Err(SyntaxError::UnexpectedToken(token));
                         };
                     } else {
                         return Err(SyntaxError::UnexpectedToken(token));
                     }
-                    token = match token_tree.next() {
-                        Some(token) => token,
-                        None => return Err(SyntaxError::EarlyEof),
+                    token = if let Some(token) = token_tree.next() {
+                        token
+                    } else {
+                        return Err(SyntaxError::EarlyEof);
                     };
                 }
-                let contents = match token {
-                    TokenTree::Group(group) => parse(group.tokens, &scope)?,
-                    _ => return Err(SyntaxError::UnexpectedToken(token)),
+                let contents = if let TokenTree::Group(group) = token {
+                    parse(group.tokens, scope)?
+                } else {
+                    return Err(SyntaxError::UnexpectedToken(token));
                 };
                 return Ok(AstNode::Function {
                     function_name,
@@ -191,10 +206,11 @@ pub fn next_static(
                     contents,
                     is_static: true,
                 });
+            } else {
+                return Err(SyntaxError::UnexpectedToken(TokenTree::Ident(ident)));
             }
-            _ => return Err(SyntaxError::UnexpectedToken(TokenTree::Ident(ident))),
-        },
-        IdentType::VariableName(variable_name) => { /* variable things */ }
+        }
+        IdentType::VariableName(_variable_name) => { /* variable things */ }
     }
 
     todo!()

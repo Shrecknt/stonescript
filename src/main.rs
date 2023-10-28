@@ -108,7 +108,7 @@ fn main() -> Result<(), eyre::Report> {
     println!("Tokens:\n");
     debug_token_stream(&tokenized, 0);
 
-    let ast = parse(tokenized, &vec![])?;
+    let ast = parse(tokenized, &[])?;
     for node in ast {
         println!("{:?}", node);
     }
