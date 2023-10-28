@@ -44,11 +44,7 @@ pub(crate) trait ExpectToken {
 
 impl ExpectToken for Option<TokenTree> {
     fn expect_token(self) -> Result<TokenTree, SyntaxError> {
-        if let Some(token) = self {
-            Ok(token)
-        } else {
-            Err(SyntaxError::EarlyEof)
-        }
+        self.ok_or(SyntaxError::EarlyEof)
     }
 }
 

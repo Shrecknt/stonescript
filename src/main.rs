@@ -17,7 +17,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Debug, Error)]
 pub enum ParseError {
     #[error("Unexpected end of file")]
-    UnexpectedEOF,
+    EarlyEof,
     #[error("Unexpected {0:?} while parsing {1}")]
     UnexpectedToken(String, &'static str),
 }
@@ -38,11 +38,7 @@ pub(crate) trait ExpectChar {
 
 impl ExpectChar for Option<char> {
     fn expect_char(self) -> ParseResult<char> {
-        if let Some(char) = self {
-            Ok(char)
-        } else {
-            Err(ParseError::UnexpectedEOF)
-        }
+        self.ok_or(ParseError::EarlyEof)
     }
 }
 
