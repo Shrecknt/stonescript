@@ -1,0 +1,8 @@
+{
+    "cSpell.words": [
+        "tokenise"
+    ],
+    "rust-analyzer.linkedProjects": [
+        "./Cargo.toml"
+    ]
+}

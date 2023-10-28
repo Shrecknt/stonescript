@@ -1,8 +1,6 @@
 use crate::token::{
-    group::Delimiter,
-    ident::{self, Ident, IdentType, Keyword},
-    literal::Literal,
-    punct::PunctToken,
+    ident::{Ident, IdentType, Keyword},
+    punct::{self, Punct, PunctToken},
     TokenTree,
 };
 use crate::SyntaxError;
@@ -43,8 +41,8 @@ impl TokenStream {
 pub enum AstNode {
     Function {
         function_name: String,
-        arguments: Vec<TypedVariable>,
-        return_type: String,
+        arguments: Vec<crate::ast::parse::AstNode>,
+        return_type: Type,
         contents: Vec<AstNode>,
         is_static: bool,
     },
@@ -62,6 +60,17 @@ pub enum AstNode {
         variable_name: String,
         variable_type: String,
     },
+}
+
+#[derive(Debug)]
+pub enum Type {
+    Void,
+}
+
+impl From<String> for Type {
+    fn from(value: String) -> Self {
+        todo!()
+    }
 }
 
 pub fn parse(token_tree: Vec<TokenTree>, scope: &Vec<String>) -> Result<Vec<AstNode>, SyntaxError> {
@@ -117,7 +126,7 @@ pub fn next_static(
     let ident = match &token_tree.next() {
         Some(token) => match token {
             TokenTree::Ident(ident) => ident.clone(),
-            _ => return Err(SyntaxError::UnexpectedToken(token)),
+            _ => return Err(SyntaxError::UnexpectedToken(token.clone())),
         },
         None => return Err(SyntaxError::EarlyEof),
     };
@@ -126,7 +135,7 @@ pub fn next_static(
         IdentType::Keyword(keyword) => match keyword {
             Keyword::Function => {
                 let function_name = match token_tree.next() {
-                    Some(token) => match token {
+                    Some(token) => match token.clone() {
                         TokenTree::Ident(ident) => match ident.token {
                             IdentType::VariableName(variable_name) => variable_name,
                             _ => return Err(SyntaxError::UnexpectedToken(token)),
@@ -134,20 +143,53 @@ pub fn next_static(
                         _ => return Err(SyntaxError::UnexpectedToken(token)),
                     },
                     None => return Err(SyntaxError::EarlyEof),
-                };
+                }
+                .to_string();
                 let arguments = match token_tree.next() {
                     Some(token) => match token {
-                        TokenTree::Group(group) => { /* group things */ }
+                        TokenTree::Group(group) => parse(group.tokens, &scope.clone())?,
                         _ => return Err(SyntaxError::UnexpectedToken(token)),
                     },
                     None => return Err(SyntaxError::EarlyEof),
                 };
+                let mut token = match token_tree.next() {
+                    Some(token) => token,
+                    None => return Err(SyntaxError::EarlyEof),
+                };
+                let mut return_type = Type::Void;
+                if let TokenTree::Punct(punct) = token {
+                    if let PunctToken::Colon = punct.token {
+                        return_type = match Type::try_from(match token_tree.next() {
+                            Some(token) => match token.clone() {
+                                TokenTree::Ident(ident) => match ident.token {
+                                    IdentType::VariableName(variable_name) => variable_name,
+                                    _ => return Err(SyntaxError::UnexpectedToken(token)),
+                                },
+                                _ => return Err(SyntaxError::UnexpectedToken(token)),
+                            },
+                            None => return Err(SyntaxError::EarlyEof),
+                        }) {
+                            Ok(variable_type) => variable_type,
+                            Err(_) => return Err(SyntaxError::UnexpectedToken(token)),
+                        };
+                    } else {
+                        return Err(SyntaxError::UnexpectedToken(token));
+                    }
+                    token = match token_tree.next() {
+                        Some(token) => token,
+                        None => return Err(SyntaxError::EarlyEof),
+                    };
+                }
+                let contents = match token {
+                    TokenTree::Group(group) => parse(group.tokens, &scope)?,
+                    _ => return Err(SyntaxError::UnexpectedToken(token)),
+                };
                 return Ok(AstNode::Function {
                     function_name,
                     arguments,
-                    return_type: todo!(),
-                    contents: todo!(),
-                    is_static: todo!(),
+                    return_type,
+                    contents,
+                    is_static: true,
                 });
             }
             _ => return Err(SyntaxError::UnexpectedToken(TokenTree::Ident(ident))),
