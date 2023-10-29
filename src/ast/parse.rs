@@ -99,6 +99,9 @@ pub enum AstNode {
         variable_name: String,
         variable_type: Type,
     },
+    Command {
+        contents: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -143,7 +146,6 @@ pub fn parse(
                 token_tree.advance();
             }
             TokenTree::Ident(ident) => {
-                println!("{:?}", ident);
                 if let IdentType::Keyword(Keyword::Static) = ident.token {
                     token_tree.advance();
                     next_static(&mut token_tree, &scope, project_scope, &mut function_scope)?;
@@ -152,8 +154,8 @@ pub fn parse(
                 }
             }
             TokenTree::Literal(literal) => {
-                println!("{:?}", literal);
-                if let LiteralType::Command(_) = literal.value {
+                if let LiteralType::Command(contents) = literal.value {
+                    function_scope.push(AstNode::Command { contents });
                     token_tree.advance();
                 } else {
                     return Err(SyntaxError::UnexpectedToken(token));

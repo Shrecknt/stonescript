@@ -3,6 +3,7 @@ use crate::{
     config::ProjectConfig,
     token::{tokenise, TokenTree},
 };
+use ast::parse::AstNode;
 use clap::Parser;
 use std::{fs, path::PathBuf};
 use thiserror::Error;
@@ -76,6 +77,37 @@ fn debug_token_stream(stream: &Vec<TokenTree>, indent: usize) {
     }
 }
 
+fn debug_ast(stream: &Vec<AstNode>, indent: usize) {
+    for token in stream {
+        match token {
+            AstNode::Block { contents } => {
+                println!("{}Group({{)", " ".repeat(indent));
+                debug_ast(contents, indent + 4);
+            }
+            AstNode::Function {
+                function_name,
+                arguments,
+                return_type,
+                contents,
+                is_static,
+            } => {
+                println!(
+                    "{}{}Function {}({:?}): {:?}",
+                    " ".repeat(indent),
+                    if *is_static { "static " } else { "" },
+                    function_name,
+                    arguments,
+                    return_type
+                );
+                debug_ast(contents, indent + 4);
+            }
+            _ => {
+                println!("{}{:?}", " ".repeat(indent), token);
+            }
+        }
+    }
+}
+
 fn main() -> Result<(), eyre::Report> {
     let args = Args::parse();
 
@@ -101,16 +133,16 @@ fn main() -> Result<(), eyre::Report> {
     let entrypoint_contents = fs::read_to_string(args.root.join(args.entrypoint))?;
     let tokenized = tokenise((&mut entrypoint_contents.chars()).into())?;
 
-    println!("Tokens:\n");
+    println!("Tokens:");
     debug_token_stream(&tokenized, 0);
+
+    println!();
 
     let mut ast = vec![];
     let mut scope = parse(tokenized, &[], &mut ast)?;
     ast.append(&mut scope);
-    println!("AST ({}):", ast.len());
-    for node in ast {
-        println!("{:?}", node);
-    }
+    println!("AST:");
+    debug_ast(&ast, 0);
 
     Ok(())
 }
