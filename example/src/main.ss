@@ -1,7 +1,10 @@
+static test: int = testing;
+
 static function main(): void {
-    /say "loading!";
+    static loaded: int = test;
+    $say "loading!";
 }
 
 static function tick(): void {
-    /say "loading!";
+    $say "loading!";
 }

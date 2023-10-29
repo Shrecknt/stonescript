@@ -104,7 +104,10 @@ fn main() -> Result<(), eyre::Report> {
     println!("Tokens:\n");
     debug_token_stream(&tokenized, 0);
 
-    let ast = parse(tokenized, &[])?;
+    let mut ast = vec![];
+    let mut scope = parse(tokenized, &[], &mut ast)?;
+    ast.append(&mut scope);
+    println!("AST ({}):", ast.len());
     for node in ast {
         println!("{:?}", node);
     }
