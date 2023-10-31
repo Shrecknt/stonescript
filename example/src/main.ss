@@ -1,4 +1,4 @@
-static test: int = testing;
+static test: int = 1 + a / 2 * cat;
 test = testing;
 
 static function main(): void {

@@ -49,6 +49,15 @@ impl TokenStream {
     }
 }
 
+impl From<Vec<TokenTree>> for TokenStream {
+    fn from(tokens: Vec<TokenTree>) -> Self {
+        Self {
+            tokens,
+            position: 0,
+        }
+    }
+}
+
 pub(crate) trait ExpectToken {
     fn expect_token(self) -> Result<TokenTree, SyntaxError>;
 }
@@ -79,12 +88,12 @@ pub enum AstNode {
     Declaration {
         variable_name: String,
         variable_type: Type,
-        value: Option<String>,
+        value: Option<Expression>,
         is_static: bool,
     },
     Assignment {
         variable_name: String,
-        value: String,
+        value: Expression,
     },
     TypedVariable {
         variable_name: String,
@@ -106,6 +115,46 @@ impl From<String> for Type {
         match value.as_str() {
             "void" => Self::Void,
             _ => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Expression {
+    Byte(i8),
+    Short(i16),
+    Int(i32),
+    Long(i64),
+    Float(f32),
+    Double(f64),
+    String(String),
+    Ident(String),
+    Add(Box<Expression>, Box<Expression>),
+    Subtract(Box<Expression>, Box<Expression>),
+    Multiply(Box<Expression>, Box<Expression>),
+    Divide(Box<Expression>, Box<Expression>),
+}
+
+impl TryFrom<TokenTree> for Expression {
+    type Error = SyntaxError;
+
+    fn try_from(token: TokenTree) -> Result<Self, Self::Error> {
+        match token.clone() {
+            TokenTree::Ident(ident) => Ok(Expression::Ident(
+                expect_token!(token: IdentType::VariableName[a] = ident.token),
+            )),
+            TokenTree::Literal(literal) => Ok(match literal.value {
+                LiteralType::Byte(val) => Self::Byte(val),
+                LiteralType::Short(val) => Self::Short(val),
+                LiteralType::Int(val) => Self::Int(val),
+                LiteralType::Long(val) => Self::Long(val),
+                LiteralType::Float(val) => Self::Float(val),
+                LiteralType::Double(val) => Self::Double(val),
+                LiteralType::String(val) => Self::String(val),
+                _ => return Err(Self::Error::UnexpectedToken(token)),
+            }),
+            TokenTree::Group(group) => next_expression(&mut group.tokens.into()),
+            _ => Err(Self::Error::UnexpectedToken(token)),
         }
     }
 }
@@ -254,9 +303,7 @@ fn next_variable(token_tree: &mut TokenStream, is_static: bool) -> Result<AstNod
         } else {
             let token = token_tree.next().expect_token()?;
             expect_token!(token: PunctToken::Assignment = punct.token);
-            let token = token_tree.next().expect_token()?;
-            let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
-            value = Some(expect_token!(token: IdentType::VariableName[a] = ident.token));
+            value = Some(next_expression(token_tree)?);
         }
     }
 
@@ -281,14 +328,41 @@ fn next_assignment(token_tree: &mut TokenStream) -> Result<AstNode, SyntaxError>
     let punct = expect_token!(token: TokenTree::Punct[a] = token.clone());
     expect_token!(token: PunctToken::Assignment = punct.token);
 
-    let token = token_tree.next().expect_token()?;
-    let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
-    let value = expect_token!(token: IdentType::VariableName[a] = ident.token);
+    let value = next_expression(token_tree)?;
 
-    token_tree.advance();
+    let token = token_tree.next().expect_token()?;
+    let punct = expect_token!(token: TokenTree::Punct[a] = token);
+    expect_token!(token: PunctToken::Semicolon = punct.token);
 
     Ok(AstNode::Assignment {
         variable_name,
         value,
+    })
+}
+
+fn next_expression(token_tree: &mut TokenStream) -> Result<Expression, SyntaxError> {
+    let token = token_tree.next().expect_token()?;
+    let expr_a = Expression::try_from(token)?;
+
+    let operator_token = match token_tree.peek() {
+        Some(token) => match expect_token!(token: TokenTree::Punct[a] = token).token {
+            PunctToken::Semicolon => return Ok(expr_a),
+            _ => {
+                token_tree.advance();
+                token
+            }
+        },
+        None => return Ok(expr_a),
+    };
+    let operator = expect_token!(operator_token: TokenTree::Punct[a] = operator_token).token;
+
+    let expr_b = next_expression(token_tree)?;
+
+    Ok(match operator {
+        PunctToken::Add => Expression::Add(expr_a.into(), expr_b.into()),
+        PunctToken::Subtract => Expression::Subtract(expr_a.into(), expr_b.into()),
+        PunctToken::Multiply => Expression::Multiply(expr_a.into(), expr_b.into()),
+        PunctToken::Slash => Expression::Divide(expr_a.into(), expr_b.into()),
+        _ => return Err(SyntaxError::UnexpectedToken(operator_token)),
     })
 }
