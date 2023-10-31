@@ -1,5 +1,11 @@
 {
     "cSpell.words": [
+        "alloc",
+        "datapack",
+        "datapacks",
+        "dealloc",
+        "mcfunction",
+        "stdlib",
         "tokenise"
     ],
     "rust-analyzer.linkedProjects": [

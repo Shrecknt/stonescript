@@ -10,6 +10,9 @@ Thank you [PyPylia](https://github.com/PyPylia) for making my code less bad.
  - - Parse source files into token streams
  - Parser
  - - Convert the token stream into an AST
+ - Parser 2nd Pass
+ - - Handle imports
+ - - Mangle variable names
  - Pre-Processor
  - - Inline small functions
  - - Evaluate macros
@@ -17,7 +20,7 @@ Thank you [PyPylia](https://github.com/PyPylia) for making my code less bad.
  - Datapack Generator
  - - Evaluate imports
  - - Generate function and variable names
- - - Convert the pree-processed AST into valid mcfunction files
+ - - Convert the pre-processed AST into valid mcfunction files
  - Standard Library
  - - A standard library that all programs are dependent on
  - - Handles `alloc`, `dealloc`, `read`, and `write` functions

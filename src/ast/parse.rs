@@ -7,22 +7,13 @@ use crate::token::{
 use crate::SyntaxError;
 
 macro_rules! expect_token {
-    ($token:ident: $variant:path = $value:expr) => {
-        if let $variant(inner_value) = $value {
-            inner_value
+    ($token:ident: $variant:path $( [$($varp:ident),+] )? $( {$($varb:ident),+} )? = $value:expr) => {
+        if let $variant $( ( $($varp),+ ) )? $( { $($varb),+ } )? = $value {
+            ($( $($varp),+ )? $( $($varb),+ )?)
         } else {
             return Err(SyntaxError::UnexpectedToken($token));
         }
-    };
-}
-
-macro_rules! check_token {
-    ($token:ident: $variant:path = $value:expr) => {
-        if let $variant = $value {
-        } else {
-            return Err(SyntaxError::UnexpectedToken($token));
-        }
-    };
+    }
 }
 
 pub struct TokenStream {
@@ -121,12 +112,9 @@ impl From<String> for Type {
 
 pub fn parse(
     token_tree: Vec<TokenTree>,
-    scope: &[String],
     project_scope: &mut Vec<AstNode>,
 ) -> Result<Vec<AstNode>, SyntaxError> {
     let mut token_tree = TokenStream::new(token_tree);
-    #[allow(unused_mut)]
-    let mut scope = scope.to_owned();
     let mut function_scope = vec![];
 
     let mut token;
@@ -139,7 +127,7 @@ pub fn parse(
 
         match token.clone() {
             TokenTree::Group(group) => {
-                let append_ast = parse(group.tokens, &scope, project_scope)?;
+                let append_ast = parse(group.tokens, project_scope)?;
                 project_scope.push(AstNode::Block {
                     contents: append_ast,
                 });
@@ -148,7 +136,7 @@ pub fn parse(
             TokenTree::Ident(ident) => {
                 if let IdentType::Keyword(Keyword::Static) = ident.token {
                     token_tree.advance();
-                    next_static(&mut token_tree, &scope, project_scope, &mut function_scope)?;
+                    next_static(&mut token_tree, project_scope, &mut function_scope)?;
                 } else {
                     return Err(SyntaxError::UnexpectedToken(token));
                 }
@@ -172,15 +160,14 @@ pub fn parse(
 
 pub fn next_static(
     token_tree: &mut TokenStream,
-    scope: &[String],
     project_scope: &mut Vec<AstNode>,
     function_scope: &mut Vec<AstNode>,
 ) -> Result<AstNode, SyntaxError> {
     let token = token_tree.peek().expect_token()?;
-    let ident = expect_token!(token: TokenTree::Ident = token);
+    let ident = expect_token!(token: TokenTree::Ident[a] = token);
 
     match &ident.token {
-        IdentType::Keyword(_) => next_function(token_tree, scope, project_scope, true),
+        IdentType::Keyword(_) => next_function(token_tree, project_scope, true),
         IdentType::VariableName(_) => {
             let variable_declaration = next_variable(token_tree, true)?;
             function_scope.push(variable_declaration.clone());
@@ -191,41 +178,39 @@ pub fn next_static(
 
 fn next_function(
     token_tree: &mut TokenStream,
-    scope: &[String],
     project_scope: &mut Vec<AstNode>,
     is_static: bool,
 ) -> Result<AstNode, SyntaxError> {
     let token = token_tree.next().expect_token()?;
-    let ident = expect_token!(token: TokenTree::Ident = token);
+    let ident = expect_token!(token: TokenTree::Ident[a] = token);
     let token = TokenTree::Ident(ident.clone());
-    let keyword = expect_token!(token: IdentType::Keyword = ident.token);
-    check_token!(token: Keyword::Function = keyword);
+    let keyword = expect_token!(token: IdentType::Keyword[a] = ident.token);
+    expect_token!(token: Keyword::Function = keyword);
 
     let token = token_tree.next().expect_token()?;
-    let ident = expect_token!(token: TokenTree::Ident = token.clone());
-    let function_name = expect_token!(token: IdentType::VariableName = ident.token).to_string();
+    let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
+    let function_name = expect_token!(token: IdentType::VariableName[a] = ident.token).to_string();
 
     let token = token_tree.next().expect_token()?;
     #[allow(unused_variables)]
-    let group = expect_token!(token: TokenTree::Group = token);
+    let group = expect_token!(token: TokenTree::Group[a] = token);
     // TODO: generate vec of arguments (AstNode::Declaration)
     let arguments = vec![];
 
     let mut token = token_tree.next().expect_token()?;
     let mut return_type = Type::Void;
     if let TokenTree::Punct(punct) = token {
-        check_token!(token: PunctToken::Colon = punct.token);
-        return_type = expect_token!(token: Ok = Type::try_from({
+        expect_token!(token: PunctToken::Colon = punct.token);
+        return_type = expect_token!(token: Ok[a] = Type::try_from({
             let token = token_tree.next().expect_token()?;
-            let ident = expect_token!(token: TokenTree::Ident = token.clone());
-            expect_token!(token: IdentType::VariableName = ident.token)
+            let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
+            expect_token!(token: IdentType::VariableName[a] = ident.token)
         }));
         token = token_tree.next().expect_token()?;
     }
 
     let contents = parse(
-        expect_token!(token: TokenTree::Group = token).tokens,
-        scope,
+        expect_token!(token: TokenTree::Group[a] = token).tokens,
         project_scope,
     )?;
 
@@ -245,18 +230,18 @@ fn next_function(
 
 fn next_variable(token_tree: &mut TokenStream, is_static: bool) -> Result<AstNode, SyntaxError> {
     let token = token_tree.next().expect_token()?;
-    let ident = expect_token!(token: TokenTree::Ident = token);
+    let ident = expect_token!(token: TokenTree::Ident[a] = token);
     let token = TokenTree::Ident(ident.clone());
-    let variable_name = expect_token!(token: IdentType::VariableName = ident.token);
+    let variable_name = expect_token!(token: IdentType::VariableName[a] = ident.token);
 
     let token = token_tree.next().expect_token()?;
-    let punct = expect_token!(token: TokenTree::Punct = token);
-    check_token!(token: PunctToken::Colon = punct.token);
+    let punct = expect_token!(token: TokenTree::Punct[a] = token);
+    expect_token!(token: PunctToken::Colon = punct.token);
 
     let token = token_tree.next().expect_token()?;
-    let variable_type = expect_token!(token: Ok = Type::try_from({
-        let ident = expect_token!(token: TokenTree::Ident = token.clone());
-        expect_token!(token: IdentType::VariableName = ident.token)
+    let variable_type = expect_token!(token: Ok[a] = Type::try_from({
+        let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
+        expect_token!(token: IdentType::VariableName[a] = ident.token)
     }));
 
     let mut value = None;
@@ -265,16 +250,16 @@ fn next_variable(token_tree: &mut TokenStream, is_static: bool) -> Result<AstNod
         if let PunctToken::Semicolon = punct.token {
         } else {
             let token = token_tree.next().expect_token()?;
-            check_token!(token: PunctToken::Assignment = punct.token);
+            expect_token!(token: PunctToken::Assignment = punct.token);
             let token = token_tree.next().expect_token()?;
-            let ident = expect_token!(token: TokenTree::Ident = token.clone());
-            value = Some(expect_token!(token: IdentType::VariableName = ident.token));
+            let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
+            value = Some(expect_token!(token: IdentType::VariableName[a] = ident.token));
         }
     }
 
     let token = token_tree.next().expect_token()?;
-    let punct = expect_token!(token: TokenTree::Punct = token);
-    check_token!(token: PunctToken::Semicolon = punct.token);
+    let punct = expect_token!(token: TokenTree::Punct[a] = token);
+    expect_token!(token: PunctToken::Semicolon = punct.token);
 
     Ok(AstNode::Declaration {
         variable_name,

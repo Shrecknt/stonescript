@@ -139,7 +139,7 @@ fn main() -> Result<(), eyre::Report> {
     println!();
 
     let mut ast = vec![];
-    let mut scope = parse(tokenized, &[], &mut ast)?;
+    let mut scope = parse(tokenized, &mut ast)?;
     ast.append(&mut scope);
     println!("AST:");
     debug_ast(&ast, 0);
