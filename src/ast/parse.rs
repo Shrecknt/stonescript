@@ -78,7 +78,7 @@ impl ExpectToken for Option<TokenTree> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
     Block {
         contents: Vec<AstNode>,
@@ -109,7 +109,7 @@ pub enum AstNode {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Void,
     Unknown,
@@ -124,7 +124,7 @@ impl From<String> for Type {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Byte(i8),
     Short(i16),

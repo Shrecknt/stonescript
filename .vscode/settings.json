@@ -6,6 +6,8 @@
         "dealloc",
         "mcfunction",
         "stdlib",
+        "stonescript",
+        "thiserror",
         "tokenise",
         "varb",
         "varp"

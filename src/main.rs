@@ -1,60 +1,24 @@
-use crate::{
-    ast::parse::parse,
-    config::ProjectConfig,
-    token::{tokenise, TokenTree},
-};
-use ast::parse::AstNode;
 use clap::Parser;
 use std::{fs, path::PathBuf};
-use thiserror::Error;
-
-mod ast;
-mod config;
-mod stream;
-mod token;
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[derive(Debug, Error)]
-pub enum ParseError {
-    #[error("Unexpected end of file")]
-    EarlyEof,
-    #[error("Unexpected {0:?} while parsing {1}")]
-    UnexpectedToken(String, &'static str),
-}
-
-#[derive(Debug, Error)]
-pub enum SyntaxError {
-    #[error("Unexpected token {0:?} while generating AST")]
-    UnexpectedToken(TokenTree),
-    #[error("Unexpected end of file")]
-    EarlyEof,
-}
-
-pub type ParseResult<T> = Result<T, ParseError>;
-
-pub(crate) trait ExpectChar {
-    fn expect_char(self) -> ParseResult<char>;
-}
-
-impl ExpectChar for Option<char> {
-    fn expect_char(self) -> ParseResult<char> {
-        self.ok_or(ParseError::EarlyEof)
-    }
-}
+use stonescript::{
+    ast::parse::{parse, AstNode},
+    config::ProjectConfig,
+    token::{tokenise, TokenTree},
+    VERSION,
+};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-struct Args {
+pub struct Args {
     /// Root of the program to compile
     #[arg(short, long, default_value = "./")]
-    root: PathBuf,
+    pub root: PathBuf,
     /// Build directory for the datapack
     #[arg(short, long, default_value = "target")]
-    target: PathBuf,
+    pub target: PathBuf,
     /// Entrypoint file
     #[arg(short, long, default_value = "src/main.ss")]
-    entrypoint: PathBuf,
+    pub entrypoint: PathBuf,
 }
 
 fn debug_token_stream(stream: &Vec<TokenTree>, indent: usize) {
