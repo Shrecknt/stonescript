@@ -133,14 +133,17 @@ pub fn parse(
                 });
                 token_tree.advance();
             }
-            TokenTree::Ident(ident) => {
-                if let IdentType::Keyword(Keyword::Static) = ident.token {
+            TokenTree::Ident(ident) => match ident.token {
+                IdentType::Keyword(Keyword::Static) => {
                     token_tree.advance();
                     next_static(&mut token_tree, project_scope, &mut function_scope)?;
-                } else {
-                    return Err(SyntaxError::UnexpectedToken(token));
                 }
-            }
+                IdentType::VariableName(_) => {
+                    let assignment = next_assignment(&mut token_tree)?;
+                    function_scope.push(assignment);
+                }
+                _ => return Err(SyntaxError::UnexpectedToken(token)),
+            },
             TokenTree::Literal(literal) => {
                 if let LiteralType::Command(contents) = literal.value {
                     function_scope.push(AstNode::Command { contents });
@@ -266,5 +269,26 @@ fn next_variable(token_tree: &mut TokenStream, is_static: bool) -> Result<AstNod
         variable_type,
         value,
         is_static,
+    })
+}
+
+fn next_assignment(token_tree: &mut TokenStream) -> Result<AstNode, SyntaxError> {
+    let token = token_tree.next().expect_token()?;
+    let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
+    let variable_name = expect_token!(token: IdentType::VariableName[a] = ident.token);
+
+    let token = token_tree.next().expect_token()?;
+    let punct = expect_token!(token: TokenTree::Punct[a] = token.clone());
+    expect_token!(token: PunctToken::Assignment = punct.token);
+
+    let token = token_tree.next().expect_token()?;
+    let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
+    let value = expect_token!(token: IdentType::VariableName[a] = ident.token);
+
+    token_tree.advance();
+
+    Ok(AstNode::Assignment {
+        variable_name,
+        value,
     })
 }

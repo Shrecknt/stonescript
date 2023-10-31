@@ -6,7 +6,9 @@
         "dealloc",
         "mcfunction",
         "stdlib",
-        "tokenise"
+        "tokenise",
+        "varb",
+        "varp"
     ],
     "rust-analyzer.linkedProjects": [
         "./Cargo.toml"

@@ -1,4 +1,5 @@
 static test: int = testing;
+test = testing;
 
 static function main(): void {
     static loaded: int = test;
