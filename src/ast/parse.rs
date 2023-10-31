@@ -6,6 +6,16 @@ use crate::token::{
 };
 use crate::SyntaxError;
 
+/// given `expect_token!(token: Enum::Variant[field] = value)`, check if `value`
+/// is of type `Enum::Variant`. If it is, return the inner value (`field`) of
+/// `value`. If it isn't, return `Err(SyntaxError::UnexpectedToken(token))`. The
+/// name `field` doesn't actually matter, it can be whatever you want, just make
+/// the number of fields match the number of inner fields in your enum.
+///
+/// For example, you could assert that the variable `token` is an ident with the
+/// expression: `expect_token!(token: TokenTree::Ident[a] = token)`, which then
+/// returns the inner field of type `Ident`, and if it isn't an Ident, an error
+/// is returned instead.
 macro_rules! expect_token {
     ($token:ident: $variant:path $( [$($varp:ident),+] )? $( {$($varb:ident),+} )? = $value:expr) => {
         if let $variant $( ( $($varp),+ ) )? $( { $($varb),+ } )? = $value {
@@ -68,7 +78,6 @@ impl ExpectToken for Option<TokenTree> {
     }
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum AstNode {
     Block {
@@ -94,10 +103,6 @@ pub enum AstNode {
     Assignment {
         variable_name: String,
         value: Expression,
-    },
-    TypedVariable {
-        variable_name: String,
-        variable_type: Type,
     },
     Command {
         contents: String,
@@ -166,6 +171,8 @@ pub fn parse(
     let mut token_tree = TokenStream::new(token_tree);
     let mut function_scope = vec![];
 
+    // Iterate over `token_tree` until `token_tree.peek()` returns None, meaning
+    // there are no more tokens in the file.
     let mut token;
     loop {
         token = if let Some(token) = &token_tree.peek() {
@@ -210,6 +217,7 @@ pub fn parse(
     Ok(function_scope)
 }
 
+/// Get the next static variable or function in the token stream
 pub fn next_static(
     token_tree: &mut TokenStream,
     project_scope: &mut Vec<AstNode>,
@@ -228,6 +236,7 @@ pub fn next_static(
     }
 }
 
+/// Get the next function in the token stream
 fn next_function(
     token_tree: &mut TokenStream,
     project_scope: &mut Vec<AstNode>,
@@ -280,6 +289,7 @@ fn next_function(
     })
 }
 
+/// Get the next variable in the token stream
 fn next_variable(token_tree: &mut TokenStream, is_static: bool) -> Result<AstNode, SyntaxError> {
     let token = token_tree.next().expect_token()?;
     let ident = expect_token!(token: TokenTree::Ident[a] = token);
@@ -319,6 +329,7 @@ fn next_variable(token_tree: &mut TokenStream, is_static: bool) -> Result<AstNod
     })
 }
 
+/// Get the next assignment to a variable in the token stream
 fn next_assignment(token_tree: &mut TokenStream) -> Result<AstNode, SyntaxError> {
     let token = token_tree.next().expect_token()?;
     let ident = expect_token!(token: TokenTree::Ident[a] = token.clone());
@@ -340,6 +351,7 @@ fn next_assignment(token_tree: &mut TokenStream) -> Result<AstNode, SyntaxError>
     })
 }
 
+/// Get the next expression in the token stream
 fn next_expression(token_tree: &mut TokenStream) -> Result<Expression, SyntaxError> {
     let token = token_tree.next().expect_token()?;
     let expr_a = Expression::try_from(token)?;
