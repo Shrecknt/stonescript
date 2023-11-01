@@ -1,5 +1,4 @@
-use super::{Span, Token};
-use crate::{stream::Stream, ExpectChar, ParseError, ParseResult};
+use super::{Span, Token, stream::Stream, ParseError, ParseResult};
 use lazy_static::lazy_static;
 use std::{collections::HashMap, iter::FusedIterator};
 
@@ -51,12 +50,12 @@ impl<T: FusedIterator<Item = char>> Token<T> for Ident {
         let mut buffer = String::new();
 
         buffer.push({
-            let char = reader.peek().expect_char()?;
+            let char = reader.expect_peek()?;
             if unicode_ident::is_xid_start(char) {
                 reader.advance();
                 char
             } else {
-                return Err(ParseError::UnexpectedToken(char.to_string(), "ident"));
+                return Err(ParseError::UnexpectedToken(char.to_string(), "ident", Span::new(start_pos, 1)));
             }
         });
 

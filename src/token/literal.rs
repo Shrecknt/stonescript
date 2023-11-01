@@ -1,5 +1,4 @@
-use super::{Span, Token};
-use crate::{stream::Stream, ExpectChar, ParseError, ParseResult};
+use super::{stream::Stream, ParseError, ParseResult, Span, Token};
 use std::iter::FusedIterator;
 
 #[derive(Debug, Clone)]
@@ -24,7 +23,7 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let start_pos = reader.position;
 
-        let first_char = reader.peek().expect_char()?;
+        let first_char = reader.expect_peek()?;
         if first_char == '"' {
             let mut buffer = String::new();
 
@@ -32,7 +31,7 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
 
             reader.advance();
             loop {
-                let char = reader.next().expect_char()?;
+                let char = reader.expect_next()?;
                 if escaped {
                     buffer.push(char);
                     escaped = false;
@@ -56,7 +55,7 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
 
             reader.advance();
             loop {
-                let char = reader.next().expect_char()?;
+                let char = reader.expect_next()?;
                 if escaped {
                     if char != ';' {
                         buffer.push('\\');
@@ -81,43 +80,56 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
 
             reader.advance();
             loop {
-                let char = reader.next().expect_char()?;
+                let char = reader.expect_next()?;
                 if char == '.' || char.is_ascii_digit() {
                     buffer.push(char);
                 } else {
+                    let span = Span::new(start_pos, buffer.len() + 1);
                     return Ok(Literal {
-                        span: Span::new(start_pos, buffer.len() + 1),
+                        span,
                         value: match char {
-                            'b' => LiteralType::Byte(
-                                buffer
-                                    .parse()
-                                    .map_err(|_| ParseError::UnexpectedToken(buffer, "byte"))?,
-                            ),
-                            's' => LiteralType::Short(
-                                buffer
-                                    .parse()
-                                    .map_err(|_| ParseError::UnexpectedToken(buffer, "short"))?,
-                            ),
-                            'i' => LiteralType::Int(
-                                buffer
-                                    .parse()
-                                    .map_err(|_| ParseError::UnexpectedToken(buffer, "int"))?,
-                            ),
-                            'l' => LiteralType::Long(
-                                buffer
-                                    .parse()
-                                    .map_err(|_| ParseError::UnexpectedToken(buffer, "long"))?,
-                            ),
-                            'f' => LiteralType::Float(
-                                buffer
-                                    .parse()
-                                    .map_err(|_| ParseError::UnexpectedToken(buffer, "float"))?,
-                            ),
-                            'd' => LiteralType::Double(
-                                buffer
-                                    .parse()
-                                    .map_err(|_| ParseError::UnexpectedToken(buffer, "double"))?,
-                            ),
+                            'b' => LiteralType::Byte(buffer.parse().map_err(|_| {
+                                ParseError::UnexpectedToken(
+                                    buffer,
+                                    "byte",
+                                    span,
+                                )
+                            })?),
+                            's' => LiteralType::Short(buffer.parse().map_err(|_| {
+                                ParseError::UnexpectedToken(
+                                    buffer,
+                                    "short",
+                                    span,
+                                )
+                            })?),
+                            'i' => LiteralType::Int(buffer.parse().map_err(|_| {
+                                ParseError::UnexpectedToken(
+                                    buffer,
+                                    "int",
+                                    span,
+                                )
+                            })?),
+                            'l' => LiteralType::Long(buffer.parse().map_err(|_| {
+                                ParseError::UnexpectedToken(
+                                    buffer,
+                                    "long",
+                                    span,
+                                )
+                            })?),
+                            'f' => LiteralType::Float(buffer.parse().map_err(|_| {
+                                ParseError::UnexpectedToken(
+                                    buffer,
+                                    "float",
+                                    span,
+                                )
+                            })?),
+                            'd' => LiteralType::Double(buffer.parse().map_err(|_| {
+                                ParseError::UnexpectedToken(
+                                    buffer,
+                                    "double",
+                                    span,
+                                )
+                            })?),
                             _ => {
                                 reader.position -= 1;
                                 break;
@@ -127,18 +139,21 @@ impl<T: FusedIterator<Item = char>> Token<T> for Literal {
                 }
             }
 
+            let span = Span::new(start_pos, buffer.len());
+
             Ok(Literal {
-                span: Span::new(start_pos, buffer.len()),
+                span,
                 value: LiteralType::Int(
                     buffer
                         .parse()
-                        .map_err(|_| ParseError::UnexpectedToken(buffer, "int"))?,
+                        .map_err(|_| ParseError::UnexpectedToken(buffer, "int", span))?,
                 ),
             })
         } else {
             Err(ParseError::UnexpectedToken(
                 first_char.to_string(),
                 "literal",
+                Span::new(start_pos, 1)
             ))
         }
     }

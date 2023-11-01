@@ -1,16 +1,29 @@
+use thiserror::Error;
+
 use self::{
     group::Group,
     ident::Ident,
     literal::Literal,
     punct::{Punct, PunctToken},
 };
-use crate::{stream::Stream, ExpectChar, ParseError, ParseResult};
 use std::iter::FusedIterator;
+use stream::Stream;
 
 pub mod group;
 pub mod ident;
 pub mod literal;
 pub mod punct;
+pub mod stream;
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Unexpected end of file")]
+    EarlyEof,
+    #[error("Unexpected {0:?} while parsing {1}")]
+    UnexpectedToken(String, &'static str, Span),
+}
+
+pub type ParseResult<T> = Result<T, ParseError>;
 
 pub trait Token<T: FusedIterator<Item = char>>
 where
@@ -43,7 +56,7 @@ pub enum TokenTree {
 
 impl<T: FusedIterator<Item = char>> Token<T> for TokenTree {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
-        let first_char = reader.peek().expect_char()?;
+        let first_char = reader.expect_peek()?;
         if <Group as Token<T>>::valid_start(first_char) {
             Ok(TokenTree::Group(Group::parse(reader)?))
         } else if <Literal as Token<T>>::valid_start(first_char) {
@@ -56,6 +69,7 @@ impl<T: FusedIterator<Item = char>> Token<T> for TokenTree {
             Err(ParseError::UnexpectedToken(
                 first_char.to_string(),
                 "token tree",
+                Span::new(reader.position, 1),
             ))
         }
     }
@@ -69,29 +83,49 @@ impl<T: FusedIterator<Item = char>> Token<T> for TokenTree {
 }
 
 pub fn tokenise<T: FusedIterator<Item = char>>(
-    mut reader: Stream<T>,
+    reader: &mut Stream<T>,
+    closing_char: Option<char>,
 ) -> ParseResult<Vec<TokenTree>> {
     let mut tokens = vec![];
 
-    'main: while let Some(next_char) = reader.peek() {
+    println!("Tokenising: {:?}", closing_char);
+
+    loop {
+        let next_char = if let Some(closing_char) = closing_char {
+            if let Some(next_char) = reader.peek() {
+                if next_char == closing_char {
+                    reader.advance();
+                    break;
+                } else {
+                    next_char
+                }
+            } else {
+                return Err(ParseError::EarlyEof);
+            }
+        } else {
+            if let Some(next_char) = reader.peek() {
+                next_char
+            } else {
+                break;
+            }
+        };
+
         if next_char.is_whitespace() {
             reader.advance();
             continue;
         }
 
-        match TokenTree::parse(&mut reader)? {
+        match TokenTree::parse(reader)? {
             TokenTree::Punct(Punct {
                 span: _,
                 token: PunctToken::Comment,
-            }) => 'comment: loop {
-                if let Some(next_char) = reader.next() {
+            }) => {
+                while let Some(next_char) = reader.next() {
                     if next_char == '\r' || next_char == '\n' {
-                        break 'comment;
+                        break;
                     }
-                } else {
-                    break 'main;
                 }
-            },
+            }
             other => tokens.push(other),
         }
     }

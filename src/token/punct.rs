@@ -1,5 +1,4 @@
-use super::{Span, Token};
-use crate::{stream::Stream, ExpectChar, ParseError, ParseResult};
+use super::{stream::Stream, ParseError, ParseResult, Span, Token};
 use lazy_static::lazy_static;
 use std::{collections::BTreeMap, iter::FusedIterator};
 
@@ -125,11 +124,11 @@ impl<'a, 'b, T: FusedIterator<Item = char>> PunctResolver<'a, 'b, T> {
     fn follow_tree(&mut self, tree: &PunctCharTree) -> ParseResult<Punct> {
         self.depth += 1;
 
-        let char = self.stream.next().expect_char()?;
+        let char = self.stream.expect_next()?;
         if let Some(node) = tree.get(&char) {
             match node {
                 PunctCharNode::HeadedTree(token, tree) => {
-                    let peeked_char = self.stream.peek().expect_char()?;
+                    let peeked_char = self.stream.expect_peek()?;
                     if tree.contains_key(&peeked_char) {
                         self.follow_tree(tree)
                     } else {
@@ -146,7 +145,11 @@ impl<'a, 'b, T: FusedIterator<Item = char>> PunctResolver<'a, 'b, T> {
                 }),
             }
         } else {
-            Err(ParseError::UnexpectedToken(char.to_string(), "punct"))
+            Err(ParseError::UnexpectedToken(
+                char.to_string(),
+                "punct",
+                Span::new(self.start_pos, self.depth),
+            ))
         }
     }
 }

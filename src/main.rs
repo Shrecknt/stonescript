@@ -1,9 +1,12 @@
 use clap::Parser;
-use std::{fs, path::PathBuf};
+use std::{
+    fs::{self, File},
+    path::PathBuf,
+};
 use stonescript::{
-    ast::parse::{parse, AstNode},
+    ast::{Statement, func::Function, stream::Stream as TokenStream},
     config::ProjectConfig,
-    token::{tokenise, TokenTree},
+    token::{stream::CharReader, tokenise, TokenTree},
     VERSION,
 };
 
@@ -41,20 +44,20 @@ fn debug_token_stream(stream: &Vec<TokenTree>, indent: usize) {
     }
 }
 
-fn debug_ast(stream: &Vec<AstNode>, indent: usize) {
+fn debug_ast(stream: &Vec<Statement>, indent: usize) {
     for token in stream {
         match token {
-            AstNode::Block { contents } => {
+            Statement::Block { contents } => {
                 println!("{}Group({{)", " ".repeat(indent));
                 debug_ast(contents, indent + 4);
             }
-            AstNode::Function {
+            Statement::Function(Function{
                 function_name,
                 arguments,
                 return_type,
                 contents,
                 is_static,
-            } => {
+            }) => {
                 println!(
                     "{}{}Function {}({:?}): {:?}",
                     " ".repeat(indent),
@@ -94,8 +97,11 @@ fn main() -> Result<(), eyre::Report> {
         project_config.package, project_config.dependencies
     );
 
-    let entrypoint_contents = fs::read_to_string(args.root.join(args.entrypoint))?;
-    let tokenized = tokenise((&mut entrypoint_contents.chars()).into())?;
+    let mut entrypoint_file = File::open(args.root.join(args.entrypoint))?;
+    let tokenized = tokenise(
+        &mut (&mut CharReader::new(&mut entrypoint_file)).into(),
+        None,
+    )?;
 
     println!("Tokens:");
     debug_token_stream(&tokenized, 0);
@@ -103,7 +109,7 @@ fn main() -> Result<(), eyre::Report> {
     println!();
 
     let mut ast = vec![];
-    let mut scope = parse(tokenized, &mut ast)?;
+    let mut scope = TokenStream::new(tokenized).parse(&mut ast)?;
     ast.append(&mut scope);
     println!("AST:");
     debug_ast(&ast, 0);
