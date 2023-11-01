@@ -1,4 +1,4 @@
-use super::{ParseError, ParseResult};
+use super::{ParseError, ParseResult, TokenTree, punct::{Punct, PunctToken}, Token};
 use std::{
     io::{self, BufReader, Read},
     iter::FusedIterator,
@@ -151,6 +151,53 @@ impl<'a, T: FusedIterator<Item = char>> Stream<'a, T> {
     pub fn advance(&mut self) {
         self.position += 1;
     }
+
+    pub fn tokenise(&mut self, closing_char: Option<char>) -> ParseResult<Vec<TokenTree>> {
+        let mut tokens = vec![];
+    
+        loop {
+            let next_char = if let Some(closing_char) = closing_char {
+                if let Some(next_char) = self.peek() {
+                    if next_char == closing_char {
+                        self.advance();
+                        break;
+                    } else {
+                        next_char
+                    }
+                } else {
+                    return Err(ParseError::EarlyEof);
+                }
+            } else {
+                if let Some(next_char) = self.peek() {
+                    next_char
+                } else {
+                    break;
+                }
+            };
+    
+            if next_char.is_whitespace() {
+                self.advance();
+                continue;
+            }
+    
+            match TokenTree::parse(self)? {
+                TokenTree::Punct(Punct {
+                    span: _,
+                    token: PunctToken::Comment,
+                }) => {
+                    while let Some(next_char) = self.next() {
+                        if next_char == '\r' || next_char == '\n' {
+                            break;
+                        }
+                    }
+                }
+                other => tokens.push(other),
+            }
+        }
+    
+        Ok(tokens)
+    }
+    
 }
 
 impl<'a, T: FusedIterator<Item = char>> Iterator for Stream<'a, T> {

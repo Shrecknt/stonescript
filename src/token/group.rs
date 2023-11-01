@@ -1,4 +1,4 @@
-use super::{tokenise, Span, Token, TokenTree, stream::Stream, ParseError, ParseResult};
+use super::{Span, Token, TokenTree, stream::Stream, ParseError, ParseResult};
 use std::iter::FusedIterator;
 
 #[derive(Debug, Clone, Copy)]
@@ -41,7 +41,7 @@ impl<T: FusedIterator<Item = char>> Token<T> for Group {
         let delimiter = Delimiter::from_open(open_char)
             .ok_or(ParseError::UnexpectedToken(open_char.to_string(), "group", Span::new(start_pos, 1)))?;
 
-        let tokens = tokenise(reader, Some(delimiter.to_close()))?;
+        let tokens = reader.tokenise(Some(delimiter.to_close()))?;
         let width = reader.position - start_pos;
         
         Ok(Group {

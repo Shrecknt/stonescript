@@ -4,9 +4,9 @@ use std::{
     path::PathBuf,
 };
 use stonescript::{
-    ast::{Statement, func::Function, stream::Stream as TokenStream},
+    ast::{func::Function, stream::Stream as TokenStream, Statement},
     config::ProjectConfig,
-    token::{stream::CharReader, tokenise, TokenTree},
+    token::{stream::CharReader, stream::Stream as CharStream, TokenTree},
     VERSION,
 };
 
@@ -51,7 +51,7 @@ fn debug_ast(stream: &Vec<Statement>, indent: usize) {
                 println!("{}Group({{)", " ".repeat(indent));
                 debug_ast(contents, indent + 4);
             }
-            Statement::Function(Function{
+            Statement::Function(Function {
                 function_name,
                 arguments,
                 return_type,
@@ -98,10 +98,8 @@ fn main() -> Result<(), eyre::Report> {
     );
 
     let mut entrypoint_file = File::open(args.root.join(args.entrypoint))?;
-    let tokenized = tokenise(
-        &mut (&mut CharReader::new(&mut entrypoint_file)).into(),
-        None,
-    )?;
+    let tokenized =
+        CharStream::new(&mut CharReader::new(&mut entrypoint_file)).tokenise(None)?;
 
     println!("Tokens:");
     debug_token_stream(&tokenized, 0);

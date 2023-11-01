@@ -6,16 +6,13 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        ast::{Statement, r#type::{Type, Primitive}, func::Function, stream::Stream},
-        token::tokenise,
-    };
+    use crate::{ast::{Statement, r#type::{Type, Primitive}, func::Function, stream::Stream as TokenStream}, token::stream::Stream as CharStream};
 
     #[test]
     fn empty_static_function() -> Result<(), eyre::Report> {
         let input = "static function test() {}";
         let mut ast = vec![];
-        let mut result = Stream::new(tokenise(&mut (&mut input.chars()).into(), None)?).parse(&mut ast)?;
+        let mut result = TokenStream::new(CharStream::new(&mut input.chars()).tokenise(None)?).parse(&mut ast)?;
         ast.append(&mut result);
 
         let expected = vec![Statement::Function(Function {

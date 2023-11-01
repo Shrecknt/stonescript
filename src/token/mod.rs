@@ -4,7 +4,7 @@ use self::{
     group::Group,
     ident::Ident,
     literal::Literal,
-    punct::{Punct, PunctToken},
+    punct::Punct,
 };
 use std::iter::FusedIterator;
 use stream::Stream;
@@ -54,6 +54,17 @@ pub enum TokenTree {
     Group(Group),
 }
 
+impl TokenTree {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Punct(punct) => punct.span,
+            Self::Ident(ident) => ident.span,
+            Self::Literal(literal) => literal.span,
+            Self::Group(group) => group.span,
+        }
+    }
+}
+
 impl<T: FusedIterator<Item = char>> Token<T> for TokenTree {
     fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
         let first_char = reader.expect_peek()?;
@@ -80,55 +91,4 @@ impl<T: FusedIterator<Item = char>> Token<T> for TokenTree {
             || <Punct as Token<T>>::valid_start(start)
             || <Ident as Token<T>>::valid_start(start)
     }
-}
-
-pub fn tokenise<T: FusedIterator<Item = char>>(
-    reader: &mut Stream<T>,
-    closing_char: Option<char>,
-) -> ParseResult<Vec<TokenTree>> {
-    let mut tokens = vec![];
-
-    println!("Tokenising: {:?}", closing_char);
-
-    loop {
-        let next_char = if let Some(closing_char) = closing_char {
-            if let Some(next_char) = reader.peek() {
-                if next_char == closing_char {
-                    reader.advance();
-                    break;
-                } else {
-                    next_char
-                }
-            } else {
-                return Err(ParseError::EarlyEof);
-            }
-        } else {
-            if let Some(next_char) = reader.peek() {
-                next_char
-            } else {
-                break;
-            }
-        };
-
-        if next_char.is_whitespace() {
-            reader.advance();
-            continue;
-        }
-
-        match TokenTree::parse(reader)? {
-            TokenTree::Punct(Punct {
-                span: _,
-                token: PunctToken::Comment,
-            }) => {
-                while let Some(next_char) = reader.next() {
-                    if next_char == '\r' || next_char == '\n' {
-                        break;
-                    }
-                }
-            }
-            other => tokens.push(other),
-        }
-    }
-
-    Ok(tokens)
 }
