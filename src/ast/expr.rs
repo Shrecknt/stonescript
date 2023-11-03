@@ -1,71 +1,66 @@
-use crate::{expect_token, token::{punct::PunctToken, TokenTree, ident::IdentType, literal::LiteralType}};
-use super::{SyntaxResult, stream::Stream, SyntaxError};
+use super::Punctuated;
+use crate::{
+    token::{Comma, Delimiter, Dot, Ident, Literal, Parenthesis, Punct, PunctToken},
+    Parse, TokenIter, TokenTree, SyntaxResult, SyntaxError
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    Byte(i8),
-    Short(i16),
-    Int(i32),
-    Long(i64),
-    Float(f32),
-    Double(f64),
-    String(String),
-    Ident(String),
-    Add(Box<Expression>, Box<Expression>),
-    Subtract(Box<Expression>, Box<Expression>),
-    Multiply(Box<Expression>, Box<Expression>),
-    Divide(Box<Expression>, Box<Expression>),
+    Literal(Literal),
+    Variable(Ident),
+    Property(Box<Expression>, Dot, Ident),
+    Call(Box<Expression>, Parenthesis, Punctuated<Expression, Comma>),
+    Parenthesized(Parenthesis, Box<Expression>),
+    Operation(Box<Expression>, Punct, Box<Expression>),
 }
 
-impl TryFrom<TokenTree> for Expression {
-    type Error = SyntaxError;
-
-    fn try_from(token: TokenTree) -> Result<Self, Self::Error> {
-        match token.clone() {
-            TokenTree::Ident(ident) => Ok(Expression::Ident(
-                expect_token!(token: IdentType::VariableName[a] = ident.token),
-            )),
-            TokenTree::Literal(literal) => Ok(match literal.value {
-                LiteralType::Byte(val) => Self::Byte(val),
-                LiteralType::Short(val) => Self::Short(val),
-                LiteralType::Int(val) => Self::Int(val),
-                LiteralType::Long(val) => Self::Long(val),
-                LiteralType::Float(val) => Self::Float(val),
-                LiteralType::Double(val) => Self::Double(val),
-                LiteralType::String(val) => Self::String(val),
-                _ => return Err(Self::Error::UnexpectedToken(token)),
-            }),
-            TokenTree::Group(group) => Self::next(&mut group.tokens.into()),
-            _ => Err(Self::Error::UnexpectedToken(token)),
-        }
-    }
-}
-
-impl Expression {
-    pub(super) fn next(token_tree: &mut Stream) -> SyntaxResult<Self> {
-        let token = token_tree.expect_next()?;
-        let expr_a = Expression::try_from(token)?;
-    
-        let operator_token = match token_tree.peek() {
-            Some(token) => match expect_token!(token: TokenTree::Punct[a] = token).token {
-                PunctToken::Semicolon => return Ok(expr_a),
-                _ => {
-                    token_tree.advance();
-                    token
+impl Parse for Expression {
+    fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
+        let left = match token_iter.expect_consume()? {
+            TokenTree::Literal(literal) => Expression::Literal(literal),
+            TokenTree::Ident(ident) => Expression::Variable(ident),
+            TokenTree::Group(group) => {
+                if group.delimiter() == Delimiter::Parenthesis {
+                    let (paren, inner) = token_iter.parenthesized()?;
+                    Expression::Parenthesized(paren, Box::new(inner))
+                } else {
+                    return Err(SyntaxError::UnexpectedToken(TokenTree::Group(group), "expression"));
                 }
-            },
-            None => return Ok(expr_a),
+            }
+            other => return Err(SyntaxError::UnexpectedToken(other, "expression")),
         };
 
-        let operator = expect_token!(operator_token: TokenTree::Punct[a] = operator_token).token;
-        let expr_b = Self::next(token_tree)?;
-    
-        Ok(match operator {
-            PunctToken::Add => Expression::Add(expr_a.into(), expr_b.into()),
-            PunctToken::Subtract => Expression::Subtract(expr_a.into(), expr_b.into()),
-            PunctToken::Multiply => Expression::Multiply(expr_a.into(), expr_b.into()),
-            PunctToken::Slash => Expression::Divide(expr_a.into(), expr_b.into()),
-            _ => return Err(SyntaxError::UnexpectedToken(operator_token)),
-        })
+        if let Some(next_token) = token_iter.peek() {
+            match next_token {
+                TokenTree::Group(group) => {
+                    if group.delimiter() == Delimiter::Parenthesis {
+                        let (paren, inner) = token_iter.parenthesized()?;
+                        Ok(Expression::Call(Box::new(left), paren, inner))
+                    } else {
+                        Err(SyntaxError::UnexpectedToken(TokenTree::Group(group), "expression"))
+                    }
+                }
+                TokenTree::Punct(punct) => {
+                    if punct.inner() == PunctToken::Dot {
+                        let dot = token_iter.parse()?;
+                        let ident = token_iter.parse()?;
+
+                        Ok(Expression::Property(Box::new(left), dot, ident))
+                    } else {
+                        let punct = token_iter.parse()?;
+                        let right = token_iter.parse()?;
+
+                        Ok(Expression::Operation(
+                            Box::new(left),
+                            punct,
+                            Box::new(right),
+                        ))
+                    }
+                }
+                _ => Ok(left),
+            }
+        } else {
+            Ok(left)
+        }
     }
 }

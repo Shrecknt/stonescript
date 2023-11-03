@@ -1,99 +1,94 @@
-use super::{stream::Stream, ParseError, ParseResult, Span, Token};
-use lazy_static::lazy_static;
-use std::{collections::BTreeMap, iter::FusedIterator};
+use super::{cursor::Cursor, ParseResult, ParseToken};
+use crate::{ParseError, Span, Spanned, TokenTree};
+use std::{fmt, iter::FusedIterator, str::FromStr};
 
-type PunctCharTree = BTreeMap<char, PunctCharNode>;
-
-#[derive(Debug)]
-enum PunctCharNode {
-    HeadedTree(PunctToken, PunctCharTree),
-    HeadlessTree(BTreeMap<char, PunctCharNode>),
-    Token(PunctToken),
-}
-
-macro_rules! punct_tree {
-    ($map:expr, $variant:ident $char:literal) => {
-        if let Some(prev_value) = $map.remove(&$char) {
-            match prev_value {
-                PunctCharNode::HeadedTree(token, _tree) => {
-                    panic!("Token conflict between {:?} and {:?}", token, PunctToken::$variant);
-                }
-                PunctCharNode::HeadlessTree(tree) => {
-                    $map.insert(
-                        $char,
-                        PunctCharNode::HeadedTree(PunctToken::$variant, tree)
-                    );
-                }
-                PunctCharNode::Token(token) => {
-                   panic!("Token conflict between {:?} and {:?}", token, PunctToken::$variant);
-                }
-            }
-        } else {
-            $map.insert($char, PunctCharNode::Token(PunctToken::$variant));
-        }
+macro_rules! optional_char {
+    () => {
+        None
     };
-    ($map:expr, $variant:ident $char:literal $($tail:literal)+) => {
-        if let Some(prev_value) = $map.remove(&$char) {
-            match prev_value {
-                PunctCharNode::HeadedTree(token, mut tree) => {
-                    punct_tree!(tree, $variant $($tail)+);
-                    $map.insert($char, PunctCharNode::HeadedTree(token, tree));
-                }
-                PunctCharNode::HeadlessTree(mut tree) => {
-                    punct_tree!(tree, $variant $($tail)+);
-                    $map.insert($char, PunctCharNode::HeadlessTree(tree));
-                }
-                PunctCharNode::Token(token) => {
-                    $map.insert($char, PunctCharNode::HeadedTree(
-                        token, {
-                            let mut map = BTreeMap::new();
-                            punct_tree!(map, $variant $($tail)+);
-                            map
-                        })
-                    );
-                }
-            }
-        } else {
-            $map.insert($char, PunctCharNode::HeadlessTree({
-                let mut map = BTreeMap::new();
-                punct_tree!(map, $variant $($tail)+);
-                map
-            }));
-        }
+    ($char:literal) => {
+        Some($char)
     };
 }
+
+pub struct InvalidPunct;
 
 macro_rules! define_punct {
-    ($($variant:ident => $($char:literal)+),+) => {
-        #[derive(Debug, Clone, Copy)]
+    ($($variant:ident => $char1:literal $($char2:literal)?),+) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum PunctToken {
             $($variant),+
         }
 
-        lazy_static! {
-            static ref PUNCT_TREE: PunctCharTree = {
-                let mut map = BTreeMap::new();
-                $(punct_tree!(map, $variant $($char)+);)+
-                map
-            };
+        impl From<PunctToken> for &'static str {
+            fn from(value: PunctToken) -> &'static str {
+                match value {
+                    $(PunctToken::$variant => concat!($char1 $(, $char2)?),)+
+                }
+            }
         }
-    }
+
+        impl FromStr for PunctToken {
+            type Err = InvalidPunct;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $(concat!($char1 $(, $char2)?) => Ok(PunctToken::$variant),)+
+                    _ => Err(InvalidPunct),
+                }
+            }
+        }
+
+        pub mod ast {
+            use crate::{Span, Spanned, TokenTree, Sealed, token::Token};
+            use super::{Punct, PunctToken};
+
+            $(
+                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                pub struct $variant {
+                    span: Span
+                }
+
+                impl Sealed for $variant {}
+                impl Token for $variant {
+                    const NAME: &'static str = stringify!($variant);
+
+                    fn parse_token(token_tree: TokenTree) -> Option<Self> {
+                        if let Punct { span, value: PunctToken::$variant } = Punct::parse_token(token_tree)? {
+                            Some(Self { span })
+                        } else {
+                            None
+                        }
+                    }
+                }
+
+                impl Spanned for $variant {
+                    fn span(&self) -> Span {
+                        self.span
+                    }
+                }
+            )+
+        }
+
+        const PUNCT_MAP: &[(PunctToken, char, Option<char>)] = &[
+            $((PunctToken::$variant, $char1, optional_char!($($char2)?))),+
+        ];
+    };
 }
 
 define_punct!(
-    Add => '+',
-    Subtract => '-',
-    Multiply => '*',
+    Plus => '+',
+    Minus => '-',
+    Star => '*',
     Slash => '/',
-    Modulo => '%',
+    Percent => '%',
     LessThan => '<',
     LessThanEquals => '<' '=',
     GreaterThan => '>',
     GreaterThanEquals => '>' '=',
-    Assignment => '=',
+    Assign => '=',
     Not => '!',
     NotEquals => '!' '=',
-    Property => '.',
+    Dot => '.',
     Ternary => '?',
     Colon => ':',
     Equals => '=' '=',
@@ -102,69 +97,83 @@ define_punct!(
     NullishCoalescing => '?' '?',
     Semicolon => ';',
     Comma => ',',
-    Lambda => '-' '>',
-    Selector => '@',
-    Relative => '~',
-    Comment => '#'
+    Lambda => '-' '>'
 );
 
-#[derive(Debug, Clone, Copy)]
+impl fmt::Display for PunctToken {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let PunctToken::Semicolon = self {
+            f.write_str(";\n")
+        } else {
+            f.write_str(<&'static str>::from(*self))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Punct {
-    pub span: Span,
-    pub token: PunctToken,
+    span: Span,
+    value: PunctToken,
 }
 
-struct PunctResolver<'a, 'b, T: FusedIterator<Item = char>> {
-    stream: &'a mut Stream<'b, T>,
-    start_pos: usize,
-    depth: usize,
+impl Punct {
+    pub fn inner(&self) -> PunctToken {
+        self.value
+    }
 }
 
-impl<'a, 'b, T: FusedIterator<Item = char>> PunctResolver<'a, 'b, T> {
-    fn follow_tree(&mut self, tree: &PunctCharTree) -> ParseResult<Punct> {
-        self.depth += 1;
+impl Spanned for Punct {
+    fn span(&self) -> Span {
+        self.span
+    }
+}
 
-        let char = self.stream.expect_next()?;
-        if let Some(node) = tree.get(&char) {
-            match node {
-                PunctCharNode::HeadedTree(token, tree) => {
-                    let peeked_char = self.stream.expect_peek()?;
-                    if tree.contains_key(&peeked_char) {
-                        self.follow_tree(tree)
-                    } else {
-                        Ok(Punct {
-                            span: Span::new(self.start_pos, self.depth),
-                            token: *token,
-                        })
-                    }
+impl<T: FusedIterator<Item = char>> ParseToken<T> for Punct {
+    fn parse(start: char, mut cursor: Cursor<T>) -> ParseResult<Self> {
+        if let Some(next_char) = cursor.peek() {
+            let mut candidate = None;
+
+            for (token, char1, char2) in PUNCT_MAP {
+                if start != *char1 {
+                    continue;
                 }
-                PunctCharNode::HeadlessTree(tree) => self.follow_tree(tree),
-                PunctCharNode::Token(token) => Ok(Punct {
-                    span: Span::new(self.start_pos, self.depth),
-                    token: *token,
-                }),
+
+                if let Some(char2) = *char2 {
+                    if next_char == char2 {
+                        candidate = Some(*token)
+                    }
+                } else if candidate.is_none() {
+                    candidate = Some(*token)
+                }
+            }
+
+            if let Some(candidate) = candidate {
+                Ok(Punct {
+                    span: cursor.into_span(),
+                    value: candidate,
+                })
+            } else {
+                Err(ParseError::InvalidStart(start, "punct"))
             }
         } else {
-            Err(ParseError::UnexpectedToken(
-                char.to_string(),
-                "punct",
-                Span::new(self.start_pos, self.depth),
-            ))
+            let (token, _, _) = PUNCT_MAP
+                .iter()
+                .find(|(_, char1, char2)| start == *char1 && char2.is_none())
+                .ok_or(ParseError::InvalidStart(start, "punct"))?;
+            Ok(Punct {
+                span: cursor.into_span(),
+                value: *token,
+            })
         }
+    }
+
+    fn to_token_tree(self) -> TokenTree {
+        TokenTree::Punct(self)
     }
 }
 
-impl<T: FusedIterator<Item = char>> Token<T> for Punct {
-    fn parse(stream: &mut Stream<T>) -> ParseResult<Self> {
-        PunctResolver {
-            start_pos: stream.position,
-            stream,
-            depth: 0,
-        }
-        .follow_tree(&PUNCT_TREE)
-    }
-
-    fn valid_start(start: char) -> bool {
-        PUNCT_TREE.contains_key(&start)
+impl fmt::Display for Punct {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value)
     }
 }

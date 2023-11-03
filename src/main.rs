@@ -4,10 +4,9 @@ use std::{
     path::PathBuf,
 };
 use stonescript::{
-    ast::{func::Function, stream::Stream as TokenStream, Statement},
     config::ProjectConfig,
-    token::{stream::CharReader, stream::Stream as CharStream, TokenTree},
-    VERSION,
+    token::parse_from_reader,
+    VERSION, ast::Statement, TokenIter
 };
 
 #[derive(Parser, Debug)]
@@ -22,57 +21,6 @@ pub struct Args {
     /// Entrypoint file
     #[arg(short, long, default_value = "src/main.ss")]
     pub entrypoint: PathBuf,
-}
-
-fn debug_token_stream(stream: &Vec<TokenTree>, indent: usize) {
-    for token in stream {
-        match token {
-            TokenTree::Group(group) => {
-                println!("{}Group({:?})", " ".repeat(indent), group.delimiter);
-                debug_token_stream(&group.tokens, indent + 4)
-            }
-            TokenTree::Ident(ident) => {
-                println!("{}Ident({:?})", " ".repeat(indent), ident.token);
-            }
-            TokenTree::Literal(literal) => {
-                println!("{}Literal({:?})", " ".repeat(indent), literal.value);
-            }
-            TokenTree::Punct(punct) => {
-                println!("{}Punct({:?})", " ".repeat(indent), punct.token);
-            }
-        }
-    }
-}
-
-fn debug_ast(stream: &Vec<Statement>, indent: usize) {
-    for token in stream {
-        match token {
-            Statement::Block { contents } => {
-                println!("{}Group({{)", " ".repeat(indent));
-                debug_ast(contents, indent + 4);
-            }
-            Statement::Function(Function {
-                function_name,
-                arguments,
-                return_type,
-                contents,
-                is_static,
-            }) => {
-                println!(
-                    "{}{}Function {}({:?}): {:?}",
-                    " ".repeat(indent),
-                    if *is_static { "static " } else { "" },
-                    function_name,
-                    arguments,
-                    return_type
-                );
-                debug_ast(contents, indent + 4);
-            }
-            _ => {
-                println!("{}{:?}", " ".repeat(indent), token);
-            }
-        }
-    }
 }
 
 fn main() -> Result<(), eyre::Report> {
@@ -97,20 +45,18 @@ fn main() -> Result<(), eyre::Report> {
         project_config.package, project_config.dependencies
     );
 
-    let mut entrypoint_file = File::open(args.root.join(args.entrypoint))?;
-    let tokenized =
-        CharStream::new(&mut CharReader::new(&mut entrypoint_file)).tokenise(None)?;
+    let entrypoint_file = File::open(args.root.join(args.entrypoint))?;
+    let tokenized = parse_from_reader(entrypoint_file)?;
 
-    println!("Tokens:");
-    debug_token_stream(&tokenized, 0);
+    //println!("Tokens:\n{:#?}", tokenized);
+    let statements: Vec<Statement> = TokenIter::from(&tokenized).parse()?;
+    println!("{:?}", statements);
 
-    println!();
-
-    let mut ast = vec![];
-    let mut scope = TokenStream::new(tokenized).parse(&mut ast)?;
-    ast.append(&mut scope);
-    println!("AST:");
-    debug_ast(&ast, 0);
+    // let mut ast = vec![];
+    // let mut scope = TokenStream::new(tokenized).parse(&mut ast)?;
+    // ast.append(&mut scope);
+    // println!("AST:");
+    // debug_ast(&ast, 0);
 
     Ok(())
 }

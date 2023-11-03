@@ -1,7 +1,8 @@
-use super::{stream::Stream, ParseError, ParseResult, Span, Token};
-use std::iter::FusedIterator;
+use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree};
+use crate::{Span, Spanned};
+use std::{fmt, iter::FusedIterator};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LiteralType {
     Byte(i8),
     Short(i16),
@@ -10,155 +11,132 @@ pub enum LiteralType {
     Float(f32),
     Double(f64),
     String(String),
-    Command(String),
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Display for LiteralType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Byte(value) => write!(f, "{}b", value),
+            Self::Short(value) => write!(f, "{}s", value),
+            Self::Int(value) => write!(f, "{}i", value),
+            Self::Long(value) => write!(f, "{}l", value),
+            Self::Float(value) => write!(f, "{}f", value),
+            Self::Double(value) => write!(f, "{}d", value),
+            Self::String(value) => write!(f, "{:?}", value),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Literal {
-    pub span: Span,
-    pub value: LiteralType,
+    span: Span,
+    value: LiteralType,
 }
 
-impl<T: FusedIterator<Item = char>> Token<T> for Literal {
-    fn parse(reader: &mut Stream<T>) -> ParseResult<Self> {
-        let start_pos = reader.position;
+impl Literal {
+    pub fn inner(&self) -> &LiteralType {
+        &self.value
+    }
+}
 
-        let first_char = reader.expect_peek()?;
-        if first_char == '"' {
+impl Spanned for Literal {
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+
+macro_rules! number_or_error {
+    ($buffer:ident $span:ident; $variant:ident) => {
+        LiteralType::$variant(
+            $buffer.parse().map_err(move |_| {
+                ParseError::UnexpectedToken($buffer, stringify!($variant), $span)
+            })?,
+        )
+    };
+}
+
+macro_rules! parse_number {
+    ($start:ident, $cursor:ident; $($char:literal = $variant:ident),+) => {
+        let mut buffer = String::from($start);
+
+        loop {
+            let next_char = $cursor.expect_peek()?;
+            if next_char == '.' || next_char.is_ascii_digit() {
+                buffer.push(next_char);
+                $cursor.consume();
+                continue;
+            }
+
+            let span;
+            let value = match next_char {
+                $(
+                    $char => {
+                        $cursor.consume();
+                        span = $cursor.into_span();
+                        number_or_error!(buffer span; $variant)
+                    }
+                )+
+                _ => {
+                    span = $cursor.into_span();
+                    number_or_error!(buffer span; Int)
+                }
+            };
+
+            return Ok(Literal {
+                span,
+                value,
+            });
+        }
+    }
+}
+
+impl<T: FusedIterator<Item = char>> ParseToken<T> for Literal {
+    fn parse(start: char, mut cursor: Cursor<T>) -> ParseResult<Self> {
+        if start == '"' {
             let mut buffer = String::new();
-
             let mut escaped = false;
 
-            reader.advance();
             loop {
-                let char = reader.expect_next()?;
+                let next_char = cursor.expect_consume()?;
+
                 if escaped {
-                    buffer.push(char);
+                    buffer.push(next_char);
                     escaped = false;
-                } else if char == '\\' {
+                } else if next_char == '\\' {
                     escaped = true;
-                } else if char == '"' {
+                } else if next_char == '"' {
                     break;
                 } else {
-                    buffer.push(char);
+                    buffer.push(next_char);
                 }
             }
 
             Ok(Literal {
-                span: Span::new(start_pos, buffer.len() + 2),
+                span: cursor.into_span(),
                 value: LiteralType::String(buffer),
             })
-        } else if first_char == '$' {
-            let mut buffer = String::new();
-
-            let mut escaped = false;
-
-            reader.advance();
-            loop {
-                let char = reader.expect_next()?;
-                if escaped {
-                    if char != ';' {
-                        buffer.push('\\');
-                    }
-                    buffer.push(char);
-                    escaped = false;
-                } else if char == '\\' {
-                    escaped = true;
-                } else if char == ';' {
-                    break;
-                } else {
-                    buffer.push(char);
-                }
-            }
-
-            Ok(Literal {
-                span: Span::new(start_pos, buffer.len() + 2),
-                value: LiteralType::Command(buffer),
-            })
-        } else if first_char == '-' || first_char.is_ascii_digit() {
-            let mut buffer = String::from(first_char);
-
-            reader.advance();
-            loop {
-                let char = reader.expect_next()?;
-                if char == '.' || char.is_ascii_digit() {
-                    buffer.push(char);
-                } else {
-                    let span = Span::new(start_pos, buffer.len() + 1);
-                    return Ok(Literal {
-                        span,
-                        value: match char {
-                            'b' => LiteralType::Byte(buffer.parse().map_err(|_| {
-                                ParseError::UnexpectedToken(
-                                    buffer,
-                                    "byte",
-                                    span,
-                                )
-                            })?),
-                            's' => LiteralType::Short(buffer.parse().map_err(|_| {
-                                ParseError::UnexpectedToken(
-                                    buffer,
-                                    "short",
-                                    span,
-                                )
-                            })?),
-                            'i' => LiteralType::Int(buffer.parse().map_err(|_| {
-                                ParseError::UnexpectedToken(
-                                    buffer,
-                                    "int",
-                                    span,
-                                )
-                            })?),
-                            'l' => LiteralType::Long(buffer.parse().map_err(|_| {
-                                ParseError::UnexpectedToken(
-                                    buffer,
-                                    "long",
-                                    span,
-                                )
-                            })?),
-                            'f' => LiteralType::Float(buffer.parse().map_err(|_| {
-                                ParseError::UnexpectedToken(
-                                    buffer,
-                                    "float",
-                                    span,
-                                )
-                            })?),
-                            'd' => LiteralType::Double(buffer.parse().map_err(|_| {
-                                ParseError::UnexpectedToken(
-                                    buffer,
-                                    "double",
-                                    span,
-                                )
-                            })?),
-                            _ => {
-                                reader.position -= 1;
-                                break;
-                            }
-                        },
-                    });
-                }
-            }
-
-            let span = Span::new(start_pos, buffer.len());
-
-            Ok(Literal {
-                span,
-                value: LiteralType::Int(
-                    buffer
-                        .parse()
-                        .map_err(|_| ParseError::UnexpectedToken(buffer, "int", span))?,
-                ),
-            })
+        } else if start == '-' || start.is_ascii_digit() {
+            parse_number!(
+                start, cursor;
+                'b' = Byte,
+                's' = Short,
+                'i' = Int,
+                'l' = Long,
+                'f' = Float,
+                'd' = Double
+            );
         } else {
-            Err(ParseError::UnexpectedToken(
-                first_char.to_string(),
-                "literal",
-                Span::new(start_pos, 1)
-            ))
+            Err(ParseError::InvalidStart(start, "literal"))
         }
     }
 
-    fn valid_start(start: char) -> bool {
-        start == '"' || start == '$' || start == '-' || start.is_ascii_digit()
+    fn to_token_tree(self) -> TokenTree {
+        TokenTree::Literal(self)
+    }
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
