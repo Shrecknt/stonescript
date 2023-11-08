@@ -17,7 +17,7 @@ pub enum ParseError {
 
 macro_rules! define_token_tree {
     ($($token:ident),+) => {
-        #[derive(Debug, Clone, PartialEq)]
+        #[derive(Clone, PartialEq)]
         pub enum TokenTree {
             $($token($token),)+
         }
@@ -30,10 +30,10 @@ macro_rules! define_token_tree {
             }
         }
 
-        impl fmt::Display for TokenTree {
+        impl fmt::Debug for TokenTree {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
-                    $(Self::$token(value) => write!(f, "{}", value),)+
+                    $(Self::$token(value) => write!(f, "{:?}", value),)+
                 }
             }
         }
@@ -63,7 +63,7 @@ impl ToTokenTree for TokenTree {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct TokenStream(pub Vec<TokenTree>);
 impl TokenStream {
     pub fn new() -> Self {
@@ -77,16 +77,19 @@ impl From<Vec<TokenTree>> for TokenStream {
     }
 }
 
-impl fmt::Display for TokenStream {
+impl fmt::Debug for TokenStream {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(
-            &self
-                .0
-                .iter()
-                .map(|tt| format!("{}", tt))
-                .fold(String::new(), |a, b| a + &b + " ")
-                .trim_end(),
-        )
+        if f.alternate() {
+            for token in &self.0 {
+                write!(f, "{:#?} ", token)?;
+            }
+        } else {
+            for token in &self.0 {
+                write!(f, "{:?} ", token)?;
+            }
+        }
+
+        Ok(())
     }
 }
 

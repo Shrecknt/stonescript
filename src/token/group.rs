@@ -80,7 +80,7 @@ define_delimiter!(
     Parenthesis => '(' ')'
 );
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Group {
     span: Span,
     delimiter: Delimiter,
@@ -146,24 +146,27 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Group {
     }
 }
 
-impl fmt::Display for Group {
+impl fmt::Debug for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_char(self.delimiter.open())?;
 
-        match self.delimiter {
-            Delimiter::Brace => {
+        if f.alternate() {
+            if let Delimiter::Brace = self.delimiter {
                 f.write_char('\n')?;
-                for s in format!("{}", self.tokens).split_inclusive('\n') {
+
+                for s in format!("{:#?}", self.tokens).split_inclusive('\n') {
                     f.write_str("    ")?;
                     f.write_str(s)?;
                     f.write_char('\n')?;
                 }
+
                 f.write_char('\n')?;
+            } else {
+                write!(f, "{:#?}", self.tokens)?;
             }
-            _ => {
-                write!(f, "{}", self.tokens)?;
-            }
-        };
+        } else {
+            write!(f, "{:?}", self.tokens)?;
+        }
 
         f.write_char(self.delimiter.close())
     }

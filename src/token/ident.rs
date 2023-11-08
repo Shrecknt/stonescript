@@ -43,7 +43,7 @@ impl fmt::Display for XID {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Ident {
     span: Span,
     value: XID,
@@ -98,7 +98,7 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Ident {
     }
 }
 
-impl fmt::Display for Ident {
+impl fmt::Debug for Ident {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&self.value.0)
     }

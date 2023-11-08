@@ -2,7 +2,7 @@ use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree, ToTo
 use crate::{Span, Spanned};
 use std::{fmt, iter::FusedIterator};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum LiteralType {
     Byte(i8),
     Short(i16),
@@ -13,7 +13,7 @@ pub enum LiteralType {
     String(String),
 }
 
-impl fmt::Display for LiteralType {
+impl fmt::Debug for LiteralType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Byte(value) => write!(f, "{}b", value),
@@ -27,7 +27,7 @@ impl fmt::Display for LiteralType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Literal {
     span: Span,
     value: LiteralType,
@@ -137,8 +137,8 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Literal {
     }
 }
 
-impl fmt::Display for Literal {
+impl fmt::Debug for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{:?}", self.value)
     }
 }

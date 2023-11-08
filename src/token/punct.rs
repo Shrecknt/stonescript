@@ -15,7 +15,7 @@ pub struct InvalidPunct;
 
 macro_rules! define_punct {
     ($($variant:ident => $char1:literal $($char2:literal)?),+) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, PartialEq, Eq)]
         pub enum PunctToken {
             $($variant),+
         }
@@ -118,17 +118,19 @@ define_punct!(
     Lambda => '-' '>'
 );
 
-impl fmt::Display for PunctToken {
+impl fmt::Debug for PunctToken {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let PunctToken::Semicolon = self {
-            f.write_str(";\n")
-        } else {
-            f.write_str(<&'static str>::from(*self))
+        if f.alternate() {
+            if let PunctToken::Semicolon = self {
+                return f.write_str(";\n");
+            }
         }
+        
+        f.write_str(<&'static str>::from(*self))
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Punct {
     span: Span,
     value: PunctToken,
@@ -192,8 +194,8 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Punct {
     }
 }
 
-impl fmt::Display for Punct {
+impl fmt::Debug for Punct {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{:?}", self.value)
     }
 }

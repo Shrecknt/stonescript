@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 use stonescript::{
-    ast::Statement, config::ProjectConfig, token::parse_from_reader, TokenIter, VERSION,
+    ast::{Statement, ToTokens}, config::ProjectConfig, token::parse_from_reader, TokenIter, VERSION,
 };
 
 #[derive(Parser, Debug)]
@@ -47,7 +47,7 @@ fn main() -> eyre::Result<()> {
     let tokenized = parse_from_reader(entrypoint_file)?;
 
     let statements: Vec<Statement> = TokenIter::from(&tokenized).parse()?;
-    println!("{:?}", statements);
+    println!("{:#?}", statements.into_tokens());
 
     Ok(())
 }
