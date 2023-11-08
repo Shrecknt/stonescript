@@ -1,4 +1,4 @@
-pub use self::{token::prelude::*, ast::prelude::*};
+pub use self::{ast::prelude::*, token::prelude::*};
 pub(crate) use private::Sealed;
 
 mod private {
@@ -27,27 +27,42 @@ pub trait Spanned {
     fn span(&self) -> Span;
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::ast::{Statement, ty::{Type, Primitive}, func::Function};
+#[cfg(test)]
+mod tests {
+    use crate::{
+        ast::{FunctionDecl, Primitive, Statement, Type},
+        parse_str, TokenIter,
+    };
 
-//     #[test]
-//     fn empty_static_function() -> Result<(), eyre::Report> {
-//         let input = "static function test() {}";
-//         let mut ast = vec![];
-//         let mut result = TokenStream::new(CharStream::new(&mut input.chars()).tokenise(None)?).parse(&mut ast)?;
-//         ast.append(&mut result);
+    #[test]
+    fn empty_static_function() -> eyre::Result<()> {
+        let input = "static function test(): void {}";
+        let tokens = parse_str(input)?;
+        let ast: Vec<Statement> = TokenIter::from(&tokens).parse()?;
 
-//         let expected = vec![Statement::Function(Function {
-//             function_name: "test".to_string(),
-//             arguments: vec![],
-//             return_type: Type::Primitive(Primitive::Void),
-//             contents: vec![],
-//             is_static: true,
-//         })];
+        if let [Statement::Function(FunctionDecl {
+            staticness,
+            function_token: _,
+            ident,
+            paren: _,
+            args,
+            colon: _,
+            return_type,
+            block,
+        })] = ast.as_slice()
+        {
+            assert!(staticness.is_some());
+            assert_eq!(ident.inner(), "test");
+            assert!(args.is_empty());
+            if let Type::Primitive(Primitive::Void { span: _ }) = return_type {
+            } else {
+                panic!("expected type `void` got `{:?}`", return_type);
+            }
+            assert!(block.contents.is_empty());
 
-//         assert_eq!(ast, expected);
+            return Ok(());
+        }
 
-//         Ok(())
-//     }
-// }
+        panic!("incorrect ast: {:?}", ast);
+    }
+}

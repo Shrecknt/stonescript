@@ -6,11 +6,11 @@ pub use self::{
     func::{FunctionArg, FunctionDecl},
     punctuated::Punctuated,
     stmt::Statement,
-    ty::Type,
+    ty::{Type, Primitive},
 };
 use crate::{
-    token::{Brace, Bracket, Delimiter, Group, Parenthesis},
-    Parse, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree,
+    token::{Brace, Bracket, Delimiter, Group, Parenthesis, ToTokenTree},
+    Parse, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree, TokenStream, Span,
 };
 
 mod assign;
@@ -45,3 +45,42 @@ define_group_parsers!(
     bracketed: Bracket,
     parenthesized: Parenthesis
 );
+
+fn span_of_two(start: Span, end: Span) -> Span {
+    Span::new(start.index, end.index + end.width - start.index)
+}
+
+pub trait ToTokens: Spanned {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>);
+    fn into_tokens(self) -> TokenStream where Self: Sized {
+        let mut tokens = vec![];
+        self.write_into_stream(&mut tokens);
+        tokens.into()
+    }
+}
+
+impl<T: ToTokenTree + Spanned> ToTokens for T {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+        stream.push(self.to_token_tree())
+    }
+}
+
+impl<T: Spanned> Spanned for Vec<T> {
+    fn span(&self) -> Span {
+        if let [item] = self.as_slice() {
+            item.span()
+        } else if let [start_item, .., end_item] = self.as_slice() {
+            span_of_two(start_item.span(), end_item.span())
+        } else {
+            panic!("totokens should not return an empty stream")
+        }
+    }
+}
+
+impl<T: ToTokens> ToTokens for Vec<T> {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+        for item in self {
+            item.write_into_stream(stream)
+        }
+    }
+}

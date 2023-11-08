@@ -1,4 +1,4 @@
-use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree};
+use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree, ToTokenTree};
 use crate::{Span, Spanned};
 use std::{fmt, iter::FusedIterator, str::FromStr};
 use thiserror::Error;
@@ -53,11 +53,24 @@ impl Ident {
     pub fn inner(&self) -> &str {
         self.value.inner()
     }
+
+    pub(crate) fn new_unchecked(span: Span, value: &str) -> Ident {
+        Self {
+            span,
+            value: XID(value.to_string())
+        }
+    }
 }
 
 impl Spanned for Ident {
     fn span(&self) -> Span {
         self.span
+    }
+}
+
+impl ToTokenTree for Ident {
+    fn to_token_tree(self) -> TokenTree {
+        TokenTree::Ident(self)
     }
 }
 
@@ -82,10 +95,6 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Ident {
             span: cursor.into_span(),
             value: XID(buffer),
         })
-    }
-
-    fn to_token_tree(self) -> TokenTree {
-        TokenTree::Ident(self)
     }
 }
 

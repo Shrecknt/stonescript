@@ -1,7 +1,7 @@
-use super::Expression;
+use super::{Expression, ToTokens, span_of_two};
 use crate::{
     token::{Assign, Ident, Semicolon},
-    Parse, SyntaxResult, TokenIter,
+    Parse, SyntaxResult, TokenIter, Spanned, Span, TokenTree, 
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,5 +25,20 @@ impl Parse for Assignment {
             value,
             semicolon,
         })
+    }
+}
+
+impl Spanned for Assignment {
+    fn span(&self) -> Span {
+        span_of_two(self.variable_name.span(), self.semicolon.span())
+    }
+}
+
+impl ToTokens for Assignment {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+        self.variable_name.write_into_stream(stream);
+        self.assign.write_into_stream(stream);
+        self.value.write_into_stream(stream);
+        self.semicolon.write_into_stream(stream);
     }
 }

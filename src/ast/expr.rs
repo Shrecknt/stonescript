@@ -1,11 +1,11 @@
-use super::{bracketed, parenthesized, Punctuated};
+use super::{bracketed, parenthesized, span_of_two, Punctuated, ToTokens};
 use crate::{
     token::{
-        And, Bracket, Comma, Delimiter, Dot, Equals, GreaterThan, GreaterThanEquals, Group, Ident,
+        And, Bracket, Comma, Delimiter, Dot, Equals, GreaterThan, GreaterThanEquals, Ident,
         LessThan, LessThanEquals, Literal, Minus, Not, NotEquals, Or, Parenthesis, Percent, Plus,
-        Punct, PunctToken, Slash, Star,
+        PunctToken, Slash, Star, ToTokenTree,
     },
-    Parse, SyntaxError, SyntaxResult, TokenIter, TokenTree,
+    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -33,6 +33,26 @@ macro_rules! define_binary_op {
                     )+
                     _ => None
                 })
+            }
+        }
+
+        impl Spanned for BinaryOp {
+            fn span(&self) -> Span {
+                match self {
+                    $(
+                        Self::$name(inner) => inner.span(),
+                    )+
+                }
+            }
+        }
+
+        impl ToTokenTree for BinaryOp {
+            fn to_token_tree(self) -> TokenTree {
+                match self {
+                    $(
+                        Self::$name(inner) => inner.to_token_tree(),
+                    )+
+                }
             }
         }
     }
@@ -133,11 +153,66 @@ impl Parse for Expression {
     }
 }
 
+impl Spanned for Expression {
+    fn span(&self) -> Span {
+        match self {
+            Self::Literal(literal) => literal.span(),
+            Self::Variable(variable) => variable.span(),
+            Self::Parenthesized(paren, _expr) => paren.span(),
+            Self::Property(left, _dot, name) => span_of_two(left.span(), name.span()),
+            Self::Call(left, paren, _args) => span_of_two(left.span(), paren.span()),
+            Self::Index(left, bracket, _inner) => span_of_two(left.span(), bracket.span()),
+            Self::BinaryOp(left, _op, right) => span_of_two(left.span(), right.span()),
+            Self::UnaryOp(op, expr) => match op {
+                UnaryOp::Negate(minus) => span_of_two(minus.span(), expr.span()),
+                UnaryOp::Not(not) => span_of_two(not.span(), expr.span()),
+            },
+        }
+    }
+}
+
+impl ToTokens for Expression {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+        match self {
+            Self::Literal(literal) => literal.write_into_stream(stream),
+            Self::Variable(variable) => variable.write_into_stream(stream),
+            Self::Parenthesized(paren, expr) => paren.into_group(*expr).write_into_stream(stream),
+            Self::Property(left, dot, name) => {
+                left.write_into_stream(stream);
+                dot.write_into_stream(stream);
+                name.write_into_stream(stream);
+            }
+            Self::Call(left, paren, args) => {
+                left.write_into_stream(stream);
+                paren.into_group(args).write_into_stream(stream);
+            }
+            Self::Index(left, bracket, inner) => {
+                left.write_into_stream(stream);
+                bracket.into_group(*inner).write_into_stream(stream);
+            }
+            Self::BinaryOp(left, op, right) => {
+                left.write_into_stream(stream);
+                op.write_into_stream(stream);
+                right.write_into_stream(stream);
+            }
+            Self::UnaryOp(op, expr) => match op {
+                UnaryOp::Negate(minus) => {
+                    minus.write_into_stream(stream);
+                    expr.write_into_stream(stream);
+                }
+                UnaryOp::Not(not) => {
+                    not.write_into_stream(stream);
+                    expr.write_into_stream(stream);
+                }
+            }
+        }
+    }
+}
+
 trait UnexpectedToken
 where
-    Self: Sized,
+    Self: Sized + ToTokenTree,
 {
-    fn to_token_tree(self) -> TokenTree;
     fn unexpected<T>(self) -> SyntaxResult<T> {
         Err(SyntaxError::UnexpectedToken(
             self.to_token_tree(),
@@ -146,32 +221,4 @@ where
     }
 }
 
-impl UnexpectedToken for TokenTree {
-    fn to_token_tree(self) -> TokenTree {
-        self
-    }
-}
-
-impl UnexpectedToken for Group {
-    fn to_token_tree(self) -> TokenTree {
-        TokenTree::Group(self)
-    }
-}
-
-impl UnexpectedToken for Ident {
-    fn to_token_tree(self) -> TokenTree {
-        TokenTree::Ident(self)
-    }
-}
-
-impl UnexpectedToken for Punct {
-    fn to_token_tree(self) -> TokenTree {
-        TokenTree::Punct(self)
-    }
-}
-
-impl UnexpectedToken for Literal {
-    fn to_token_tree(self) -> TokenTree {
-        TokenTree::Literal(self)
-    }
-}
+impl<T: ToTokenTree> UnexpectedToken for T {}

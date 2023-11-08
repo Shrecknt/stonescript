@@ -1,4 +1,4 @@
-use super::{cursor::Cursor, ParseResult, ParseToken};
+use super::{cursor::Cursor, ParseResult, ParseToken, ToTokenTree};
 use crate::{ParseError, Span, Spanned, TokenTree};
 use std::{fmt, iter::FusedIterator, str::FromStr};
 
@@ -39,7 +39,7 @@ macro_rules! define_punct {
         }
 
         pub mod ast {
-            use crate::{Span, Spanned, TokenTree, Sealed, token::Token};
+            use crate::{Span, Spanned, TokenTree, Sealed, token::{Token, ToTokenTree}};
             use super::{Punct, PunctToken};
 
             $(
@@ -70,6 +70,12 @@ macro_rules! define_punct {
                 impl Spanned for $variant {
                     fn span(&self) -> Span {
                         self.span
+                    }
+                }
+
+                impl ToTokenTree for $variant {
+                    fn to_token_tree(self) -> TokenTree {
+                        TokenTree::Punct(Punct { span: self.span, value: PunctToken::$variant })
                     }
                 }
             )+
@@ -134,6 +140,12 @@ impl Spanned for Punct {
     }
 }
 
+impl ToTokenTree for Punct {
+    fn to_token_tree(self) -> TokenTree {
+        TokenTree::Punct(self)
+    }
+}
+
 impl<T: FusedIterator<Item = char>> ParseToken<T> for Punct {
     fn parse(start: char, mut cursor: Cursor<T>) -> ParseResult<Self> {
         if let Some(next_char) = cursor.peek() {
@@ -171,10 +183,6 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Punct {
                 value: *token,
             })
         }
-    }
-
-    fn to_token_tree(self) -> TokenTree {
-        TokenTree::Punct(self)
     }
 }
 

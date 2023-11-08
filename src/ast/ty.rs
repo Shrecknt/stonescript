@@ -1,4 +1,4 @@
-use crate::{token::Ident, Parse, Span, Spanned, SyntaxResult, TokenIter};
+use crate::{token::{Ident, ToTokenTree}, Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree};
 
 macro_rules! define_primitive {
     ($($variant:ident => $value:literal),+) => {
@@ -12,6 +12,26 @@ macro_rules! define_primitive {
                 match value.inner() {
                     $($value => Some(Primitive::$variant { span: value.span() }),)+
                     _ => None,
+                }
+            }
+        }
+
+        impl Spanned for Primitive {
+            fn span(&self) -> Span {
+                match self {
+                    $(
+                        Self::$variant { span } => *span,
+                    )+
+                }
+            }
+        }
+
+        impl ToTokenTree for Primitive {
+            fn to_token_tree(self) -> TokenTree {
+                match self {
+                    $(
+                        Self::$variant { span } => Ident::new_unchecked(span, $value).to_token_tree(),
+                    )+
                 }
             }
         }
@@ -39,9 +59,27 @@ impl Parse for Type {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
         let ident: Ident = token_iter.parse()?;
         if let Some(primitive) = ident.clone().into() {
-            Ok(Type::Primitive(primitive))
+            Ok(Self::Primitive(primitive))
         } else {
-            Ok(Type::UserDefined(ident))
+            Ok(Self::UserDefined(ident))
+        }
+    }
+}
+
+impl Spanned for Type {
+    fn span(&self) -> Span {
+        match self {
+            Self::Primitive(primitive) => primitive.span(),
+            Self::UserDefined(ident) => ident.span(),
+        }
+    }
+}
+
+impl ToTokenTree for Type {
+    fn to_token_tree(self) -> TokenTree {
+        match self {
+            Self::Primitive(primitive) => primitive.to_token_tree(),
+            Self::UserDefined(ident) => ident.to_token_tree(),
         }
     }
 }

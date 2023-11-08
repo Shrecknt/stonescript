@@ -1,4 +1,4 @@
-use super::{cursor::Cursor, Group, Ident, Literal, ParseResult, Punct, Token};
+use super::{cursor::Cursor, Group, Ident, Literal, ParseResult, Punct, Token, ToTokenTree};
 use crate::{Sealed, Span, Spanned};
 use std::{fmt, iter::FusedIterator};
 use thiserror::Error;
@@ -56,6 +56,12 @@ macro_rules! define_token_tree {
 }
 
 define_token_tree!(Punct, Ident, Literal, Group);
+
+impl ToTokenTree for TokenTree {
+    fn to_token_tree(self) -> TokenTree {
+        self
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TokenStream(pub Vec<TokenTree>);

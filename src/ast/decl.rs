@@ -1,7 +1,7 @@
-use super::{Expression, Type};
+use super::{span_of_two, Expression, ToTokens, Type};
 use crate::{
     token::{Assign, Colon, Ident, Semicolon, Static},
-    Parse, SyntaxResult, TokenIter,
+    Parse, Span, Spanned, SyntaxResult, TokenIter,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,5 +38,34 @@ impl Parse for Declaration {
             value,
             semicolon,
         })
+    }
+}
+
+impl Spanned for Declaration {
+    fn span(&self) -> Span {
+        if let Some(static_token) = self.staticness {
+            span_of_two(static_token.span(), self.semicolon.span())
+        } else {
+            span_of_two(self.ident.span(), self.semicolon.span())
+        }
+    }
+}
+
+impl ToTokens for Declaration {
+    fn write_into_stream(self, stream: &mut Vec<crate::TokenTree>) {
+        if let Some(static_token) = self.staticness {
+            static_token.write_into_stream(stream);
+        }
+
+        self.ident.write_into_stream(stream);
+        self.colon.write_into_stream(stream);
+        self.ty.write_into_stream(stream);
+
+        if let Some((assign, value)) = self.value {
+            assign.write_into_stream(stream);
+            value.write_into_stream(stream);
+        }
+
+        self.semicolon.write_into_stream(stream)
     }
 }

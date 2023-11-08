@@ -1,7 +1,7 @@
-use super::{Assignment, Block, Declaration, Expression, FunctionDecl};
+use super::{Assignment, Block, Declaration, Expression, FunctionDecl, span_of_two, ToTokens};
 use crate::{
     token::{Assign, Colon, Delimiter, Function, Ident, Semicolon, Static, Token},
-    Parse, SyntaxResult, TokenIter, TokenTree,
+    Parse, SyntaxResult, TokenIter, TokenTree, Spanned, Span,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,6 +48,33 @@ impl Parse for Statement {
             let expr = token_iter.parse()?;
             let semicolon = token_iter.parse()?;
             Ok(Self::Expression(expr, semicolon))
+        }
+    }
+}
+
+impl Spanned for Statement {
+    fn span(&self) -> Span {
+        match self {
+            Self::Block(block) => block.span(),
+            Self::Function(func) => func.span(),
+            Self::Declaration(decl) => decl.span(),
+            Self::Assignment(assign) => assign.span(),
+            Self::Expression(expr, semicolon) => span_of_two(expr.span(), semicolon.span()),
+        }
+    }
+}
+
+impl ToTokens for Statement {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+        match self {
+            Self::Block(block) => block.write_into_stream(stream),
+            Self::Function(func) => func.write_into_stream(stream),
+            Self::Declaration(decl) => decl.write_into_stream(stream),
+            Self::Assignment(assign) => assign.write_into_stream(stream),
+            Self::Expression(expr, semicolon) => {
+                expr.write_into_stream(stream);
+                semicolon.write_into_stream(stream);
+            }
         }
     }
 }

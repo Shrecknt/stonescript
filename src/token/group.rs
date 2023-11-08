@@ -1,4 +1,4 @@
-use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree};
+use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, ToTokenTree, TokenTree};
 use crate::{Span, Spanned, TokenStream};
 use std::{
     fmt::{self, Write},
@@ -34,7 +34,7 @@ macro_rules! define_delimiter {
         }
 
         pub mod ast {
-            use crate::Span;
+            use crate::{Span, Spanned, token::{Group, Delimiter}, ast::ToTokens};
 
             $(
                 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,6 +53,20 @@ macro_rules! define_delimiter {
 
                     pub fn close(&self) -> char {
                         $close
+                    }
+
+                    pub fn into_group<T: ToTokens>(self, contents: T) -> Group {
+                        Group {
+                            span: self.span,
+                            delimiter: Delimiter::$variant,
+                            tokens: contents.into_tokens(),
+                        }
+                    }
+                }
+
+                impl Spanned for $variant {
+                    fn span(&self) -> Span {
+                        self.span
                     }
                 }
             )+
@@ -93,6 +107,12 @@ impl Spanned for Group {
     }
 }
 
+impl ToTokenTree for Group {
+    fn to_token_tree(self) -> TokenTree {
+        TokenTree::Group(self)
+    }
+}
+
 impl<T: FusedIterator<Item = char>> ParseToken<T> for Group {
     fn parse(start: char, mut cursor: Cursor<T>) -> ParseResult<Self> {
         let delimiter =
@@ -123,10 +143,6 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Group {
             delimiter,
             tokens: tokens.into(),
         })
-    }
-
-    fn to_token_tree(self) -> TokenTree {
-        TokenTree::Group(self)
     }
 }
 

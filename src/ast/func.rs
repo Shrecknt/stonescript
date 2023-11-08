@@ -1,7 +1,7 @@
-use super::{parenthesized, Block, Punctuated, Type};
+use super::{parenthesized, Block, Punctuated, Type, span_of_two, ToTokens};
 use crate::{
     token::{Colon, Comma, Function, Ident, Parenthesis, Static},
-    Parse, SyntaxResult, TokenIter,
+    Parse, SyntaxResult, TokenIter, Spanned, Span, TokenTree,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,6 +18,20 @@ impl Parse for FunctionArg {
         let ty = token_iter.parse()?;
 
         Ok(Self { name, colon, ty })
+    }
+}
+
+impl Spanned for FunctionArg {
+    fn span(&self) -> Span {
+        span_of_two(self.name.span(), self.ty.span())
+    }
+}
+
+impl ToTokens for FunctionArg {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+        self.name.write_into_stream(stream);
+        self.colon.write_into_stream(stream);
+        self.ty.write_into_stream(stream);
     }
 }
 
@@ -53,5 +67,30 @@ impl Parse for FunctionDecl {
             return_type,
             block,
         })
+    }
+}
+
+impl Spanned for FunctionDecl {
+    fn span(&self) -> Span {
+        if let Some(static_token) = self.staticness {
+            span_of_two(static_token.span(), self.block.span())
+        } else {
+            span_of_two(self.function_token.span(), self.block.span())
+        }
+    }
+}
+
+impl ToTokens for FunctionDecl {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+        if let Some(static_token) = self.staticness {
+            static_token.write_into_stream(stream);
+        }
+
+        self.function_token.write_into_stream(stream);
+        self.ident.write_into_stream(stream);
+        self.paren.into_group(self.args).write_into_stream(stream);
+        self.colon.write_into_stream(stream);
+        self.return_type.write_into_stream(stream);
+        self.block.write_into_stream(stream);
     }
 }

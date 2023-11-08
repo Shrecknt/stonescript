@@ -4,9 +4,7 @@ use std::{
     path::PathBuf,
 };
 use stonescript::{
-    config::ProjectConfig,
-    token::parse_from_reader,
-    VERSION, ast::Statement, TokenIter
+    ast::Statement, config::ProjectConfig, token::parse_from_reader, TokenIter, VERSION,
 };
 
 #[derive(Parser, Debug)]
@@ -23,7 +21,7 @@ pub struct Args {
     pub entrypoint: PathBuf,
 }
 
-fn main() -> Result<(), eyre::Report> {
+fn main() -> eyre::Result<()> {
     let args = Args::parse();
 
     println!("Compiling with StoneScript version {}", VERSION);

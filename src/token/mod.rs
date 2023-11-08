@@ -7,7 +7,7 @@ pub use self::{
     punct::{ast::*, InvalidPunct, Punct, PunctToken},
     reader::parse_from_reader,
 };
-use crate::{ParseError, Sealed, TokenTree};
+use crate::{ParseError, Sealed, TokenTree, Spanned};
 use std::iter::FusedIterator;
 
 mod cursor;
@@ -20,13 +20,16 @@ mod punct;
 mod reader;
 
 type ParseResult<T> = Result<T, ParseError>;
+
+pub trait ToTokenTree: Spanned {
+    fn to_token_tree(self) -> TokenTree;
+}
+
 trait ParseToken<T: FusedIterator<Item = char>>
 where
-    Self: Sized,
+    Self: Sized + ToTokenTree,
 {
     fn parse(start: char, cursor: Cursor<T>) -> ParseResult<Self>;
-    fn to_token_tree(self) -> TokenTree;
-
     fn parse_to_token_tree(start: char, cursor: Cursor<T>) -> ParseResult<TokenTree> {
         Ok(Self::to_token_tree(Self::parse(start, cursor)?))
     }
@@ -34,7 +37,7 @@ where
 
 pub trait Token: Sealed
 where
-    Self: Sized,
+    Self: Sized + ToTokenTree,
 {
     const NAME: &'static str;
     fn parse_token(token_tree: TokenTree) -> Option<Self>;

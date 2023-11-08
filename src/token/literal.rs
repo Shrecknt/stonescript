@@ -1,4 +1,4 @@
-use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree};
+use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree, ToTokenTree};
 use crate::{Span, Spanned};
 use std::{fmt, iter::FusedIterator};
 
@@ -42,6 +42,12 @@ impl Literal {
 impl Spanned for Literal {
     fn span(&self) -> Span {
         self.span
+    }
+}
+
+impl ToTokenTree for Literal {
+    fn to_token_tree(self) -> TokenTree {
+        TokenTree::Literal(self)
     }
 }
 
@@ -128,10 +134,6 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Literal {
         } else {
             Err(ParseError::InvalidStart(start, "literal"))
         }
-    }
-
-    fn to_token_tree(self) -> TokenTree {
-        TokenTree::Literal(self)
     }
 }
 

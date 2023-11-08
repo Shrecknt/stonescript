@@ -1,5 +1,5 @@
 use crate::{
-    token::{Ident, Token},
+    token::{Ident, Token, ToTokenTree},
     Sealed, Span, Spanned, TokenTree,
 };
 
@@ -13,7 +13,7 @@ macro_rules! define_keyword {
 
             impl Sealed for $keyword {}
             impl Token for $keyword {
-                const NAME: &'static str = stringify!($keyword);
+                const NAME: &'static str = $value;
 
                 fn parse_token(token_tree: TokenTree) -> Option<Self> {
                     let value = Ident::parse_token(token_tree)?;
@@ -28,6 +28,12 @@ macro_rules! define_keyword {
             impl Spanned for $keyword {
                 fn span(&self) -> Span {
                     self.span
+                }
+            }
+
+            impl ToTokenTree for $keyword {
+                fn to_token_tree(self) -> TokenTree {
+                    Ident::new_unchecked(self.span, $value).to_token_tree()
                 }
             }
         )+
