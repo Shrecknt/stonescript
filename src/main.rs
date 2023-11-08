@@ -46,15 +46,8 @@ fn main() -> eyre::Result<()> {
     let entrypoint_file = File::open(args.root.join(args.entrypoint))?;
     let tokenized = parse_from_reader(entrypoint_file)?;
 
-    //println!("Tokens:\n{:#?}", tokenized);
     let statements: Vec<Statement> = TokenIter::from(&tokenized).parse()?;
     println!("{:?}", statements);
-
-    // let mut ast = vec![];
-    // let mut scope = TokenStream::new(tokenized).parse(&mut ast)?;
-    // ast.append(&mut scope);
-    // println!("AST:");
-    // debug_ast(&ast, 0);
 
     Ok(())
 }

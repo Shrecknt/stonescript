@@ -1,5 +1,5 @@
 use crate::{
-    token::{Ident, Token, ToTokenTree},
+    token::{Ident, ToTokenTree, Token},
     Sealed, Span, Spanned, TokenTree,
 };
 
@@ -9,6 +9,12 @@ macro_rules! define_keyword {
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub struct $keyword {
                 span: Span,
+            }
+
+            impl $keyword {
+                pub fn is_ident(value: &Ident) -> bool {
+                    value.inner() == $value
+                }
             }
 
             impl Sealed for $keyword {}

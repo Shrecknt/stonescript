@@ -15,14 +15,21 @@ impl TokenIter<'_> {
         }
     }
 
-    pub(crate) fn peek_ahead(&mut self, index: usize) -> Option<TokenTree> {
-        self.buffer.get(index).cloned().or_else(|| {
-            self.fill(index - self.buffer.len() + 1);
-            self.buffer.get(index).cloned()
-        })
+    pub(crate) fn peek_ahead<'a>(&'a mut self, index: usize) -> Option<&'a TokenTree> {
+        // SAFETY: `self.buffer` needs to be immutably borrowed for `'a`
+        //         However, we need to borrow self mutably for `'2` to run `self.fill`
+        //         The item reference does not exist when `self.fill` is run,
+        //         and as such we can cast `'1` to `'a`
+
+        if let Some(item) = self.buffer.get(index) {
+            return Some(unsafe { &*(item as *const TokenTree) });
+        }
+
+        self.fill(index - self.buffer.len() + 1);
+        self.buffer.get(index)
     }
 
-    pub(crate) fn peek(&mut self) -> Option<TokenTree> {
+    pub(crate) fn peek(&mut self) -> Option<&TokenTree> {
         self.peek_ahead(0)
     }
 
@@ -34,11 +41,11 @@ impl TokenIter<'_> {
         }
     }
 
-    pub(crate) fn expect_peek_ahead(&mut self, index: usize) -> SyntaxResult<TokenTree> {
+    pub(crate) fn expect_peek_ahead(&mut self, index: usize) -> SyntaxResult<&TokenTree> {
         self.peek_ahead(index).ok_or(SyntaxError::EarlyEof)
     }
 
-    pub(crate) fn expect_peek(&mut self) -> SyntaxResult<TokenTree> {
+    pub(crate) fn expect_peek(&mut self) -> SyntaxResult<&TokenTree> {
         self.expect_peek_ahead(0)
     }
 
@@ -81,7 +88,7 @@ impl<T: Token> Parse for T {
 impl<T: Token> Parse for Option<T> {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
         Ok(if let Some(token) = token_iter.peek() {
-            if let Some(value) = T::parse_token(token) {
+            if let Some(value) = T::parse_token(token.clone()) {
                 token_iter.consume();
                 Some(value)
             } else {

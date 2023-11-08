@@ -48,6 +48,12 @@ macro_rules! define_punct {
                     span: Span
                 }
 
+                impl $variant {
+                    pub fn is_punct(punct: &Punct) -> bool {
+                        punct.value == PunctToken::$variant
+                    }
+                }
+
                 impl From<Punct> for Option<$variant> {
                     fn from(value: Punct) -> Self {
                         if let Punct { span, value: PunctToken::$variant } = value {

@@ -1,7 +1,7 @@
-use super::{Assignment, Block, Declaration, Expression, FunctionDecl, span_of_two, ToTokens};
+use super::{span_of_two, Assignment, Block, Declaration, Expression, FunctionDecl, ToTokens};
 use crate::{
-    token::{Assign, Colon, Delimiter, Function, Ident, Semicolon, Static, Token},
-    Parse, SyntaxResult, TokenIter, TokenTree, Spanned, Span,
+    token::{Assign, Colon, Delimiter, Function, Semicolon, Static},
+    Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,40 +15,43 @@ pub enum Statement {
 
 impl Parse for Statement {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
-        let next_token = token_iter.expect_peek()?;
-        if let TokenTree::Group(group) = next_token {
-            if group.delimiter() == Delimiter::Brace {
-                Ok(Self::Block(token_iter.parse()?))
-            } else {
-                let expr = token_iter.parse()?;
-                let semicolon = token_iter.parse()?;
-                Ok(Self::Expression(expr, semicolon))
+        match token_iter.expect_peek()? {
+            TokenTree::Group(group) => {
+                if group.delimiter() == Delimiter::Brace {
+                    return Ok(Self::Block(token_iter.parse()?));
+                }
             }
-        } else if let Some(_) = Function::parse_token(next_token.clone()) {
-            Ok(Self::Function(token_iter.parse()?))
-        } else if let Some(_) = Static::parse_token(next_token.clone()) {
-            let next2_token = token_iter.expect_peek_ahead(1)?;
-            if let Some(_) = Function::parse_token(next2_token) {
-                Ok(Self::Function(token_iter.parse()?))
-            } else {
-                Ok(Self::Declaration(token_iter.parse()?))
+            TokenTree::Ident(ident) => {
+                if Function::is_ident(ident) {
+                    return Ok(Self::Function(token_iter.parse()?));
+                }
+
+                if Static::is_ident(ident) {
+                    if let TokenTree::Ident(next_ident) = token_iter.expect_peek_ahead(1)? {
+                        if Function::is_ident(next_ident) {
+                            return Ok(Self::Function(token_iter.parse()?));
+                        }
+                    }
+
+                    return Ok(Self::Declaration(token_iter.parse()?));
+                }
+
+                if let TokenTree::Punct(next_punct) = token_iter.expect_peek_ahead(1)? {
+                    if Colon::is_punct(next_punct) {
+                        return Ok(Self::Declaration(token_iter.parse()?));
+                    }
+
+                    if Assign::is_punct(next_punct) {
+                        return Ok(Self::Assignment(token_iter.parse()?));
+                    }
+                }
             }
-        } else if let Some(_) = Ident::parse_token(next_token) {
-            let next2_token = token_iter.expect_peek_ahead(1)?;
-            if let Some(_) = Colon::parse_token(next2_token.clone()) {
-                Ok(Self::Declaration(token_iter.parse()?))
-            } else if let Some(_) = Assign::parse_token(next2_token) {
-                Ok(Self::Assignment(token_iter.parse()?))
-            } else {
-                let expr = token_iter.parse()?;
-                let semicolon = token_iter.parse()?;
-                Ok(Self::Expression(expr, semicolon))
-            }
-        } else {
-            let expr = token_iter.parse()?;
-            let semicolon = token_iter.parse()?;
-            Ok(Self::Expression(expr, semicolon))
+            _ => (),
         }
+
+        let expr = token_iter.parse()?;
+        let semicolon = token_iter.parse()?;
+        Ok(Self::Expression(expr, semicolon))
     }
 }
 
