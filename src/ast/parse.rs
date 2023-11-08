@@ -1,7 +1,4 @@
-use crate::{
-    token::{Brace, Bracket, Delimiter, Group, Parenthesis, Token},
-    Spanned, TokenStream, TokenTree, SyntaxResult, SyntaxError
-};
+use crate::{token::Token, SyntaxError, SyntaxResult, TokenStream, TokenTree};
 use std::{collections::VecDeque, slice::Iter};
 
 pub struct TokenIter<'a> {
@@ -107,29 +104,3 @@ impl<T: Parse> Parse for Vec<T> {
         Ok(items)
     }
 }
-
-macro_rules! define_group_parsers {
-    ($($method_name:ident: $delimiter:ident),+) => {
-        impl TokenIter<'_> {
-            $(
-                pub fn $method_name<T: Parse>(&mut self) -> SyntaxResult<($delimiter, T)> {
-                    let group: Group = self.parse()?;
-                    if group.delimiter() == Delimiter::$delimiter {
-                        let span = group.span();
-                        let inner = group.into_tokens();
-                        let mut token_iter = TokenIter::from(&inner);
-                        Ok(($delimiter::new(span), token_iter.parse()?))
-                    } else {
-                        Err(SyntaxError::UnexpectedToken(TokenTree::Group(group), stringify!($delimiter)))
-                    }
-                }
-            )+
-        }
-    };
-}
-
-define_group_parsers!(
-    braced: Brace,
-    bracketed: Bracket,
-    parenthesized: Parenthesis
-);

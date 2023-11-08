@@ -63,11 +63,7 @@ impl<'a, T: FusedIterator<Item = char> + 'a> Cursor<'a, T> {
     }
 
     pub(super) fn fill(&mut self, amount: usize) {
-        let iter: Vec<char> = self
-            .inner_mut()
-            .iterator
-            .take(amount)
-            .collect();
+        let iter: Vec<char> = self.inner_mut().iterator.take(amount).collect();
         self.inner_mut().buffer.extend(iter)
     }
 

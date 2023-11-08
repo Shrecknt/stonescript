@@ -1,4 +1,4 @@
-use crate::{Parse, token::Token, TokenIter, SyntaxResult, SyntaxError};
+use crate::{token::Token, Parse, SyntaxError, SyntaxResult, TokenIter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Punctuated<T: Parse, P: Token> {

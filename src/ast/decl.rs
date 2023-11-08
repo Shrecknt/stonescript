@@ -22,7 +22,8 @@ impl Parse for Declaration {
         let ty = token_iter.parse()?;
 
         let value = if let Some(assign) = token_iter.parse()? {
-            Some((assign, token_iter.parse()?))
+            let expr = token_iter.parse()?;
+            Some((assign, expr))
         } else {
             None
         };

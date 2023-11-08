@@ -1,6 +1,6 @@
-use super::{Assignment, Declaration, Expression, FunctionDecl, Block};
+use super::{Assignment, Block, Declaration, Expression, FunctionDecl};
 use crate::{
-    token::{Assign, Colon, Function, Ident, Static, Token, Delimiter, Semicolon},
+    token::{Assign, Colon, Delimiter, Function, Ident, Semicolon, Static, Token},
     Parse, SyntaxResult, TokenIter, TokenTree,
 };
 

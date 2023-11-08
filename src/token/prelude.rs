@@ -1,5 +1,5 @@
-use crate::{Span, Spanned, Sealed};
-use super::{cursor::Cursor, Ident, Punct, Group, Literal, ParseResult, Token};
+use super::{cursor::Cursor, Group, Ident, Literal, ParseResult, Punct, Token};
+use crate::{Sealed, Span, Spanned};
 use std::{fmt, iter::FusedIterator};
 use thiserror::Error;
 

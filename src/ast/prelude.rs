@@ -1,4 +1,4 @@
-pub use super::parse::{TokenIter, Parse};
+pub use super::parse::{Parse, TokenIter};
 use crate::TokenTree;
 use thiserror::Error;
 

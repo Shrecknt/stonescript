@@ -1,5 +1,5 @@
-use crate::{token::Brace, Parse, TokenIter, SyntaxResult};
-use super::Statement;
+use super::{braced, Statement};
+use crate::{token::Brace, Parse, SyntaxResult, TokenIter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
@@ -9,10 +9,7 @@ pub struct Block {
 
 impl Parse for Block {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
-        let (brace, contents) = token_iter.braced()?;
-        Ok(Self {
-            brace,
-            contents,
-        })
+        let (brace, contents) = braced(token_iter.parse()?)?;
+        Ok(Self { brace, contents })
     }
 }

@@ -7,7 +7,7 @@ pub use self::{
     punct::{ast::*, InvalidPunct, Punct, PunctToken},
     reader::parse_from_reader,
 };
-use crate::{ParseError, TokenTree, Sealed};
+use crate::{ParseError, Sealed, TokenTree};
 use std::iter::FusedIterator;
 
 mod cursor;

@@ -1,7 +1,11 @@
-use super::Punctuated;
+use super::{bracketed, parenthesized, Punctuated};
 use crate::{
-    token::{Comma, Delimiter, Dot, Ident, Literal, Parenthesis, Punct, PunctToken, Not, Minus, Plus, Star, Slash, Percent, Equals, LessThan, LessThanEquals, GreaterThan, GreaterThanEquals, And, Or, Bracket, Group, NotEquals},
-    Parse, TokenIter, TokenTree, SyntaxResult, SyntaxError
+    token::{
+        And, Bracket, Comma, Delimiter, Dot, Equals, GreaterThan, GreaterThanEquals, Group, Ident,
+        LessThan, LessThanEquals, Literal, Minus, Not, NotEquals, Or, Parenthesis, Percent, Plus,
+        Punct, PunctToken, Slash, Star,
+    },
+    Parse, SyntaxError, SyntaxResult, TokenIter, TokenTree,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,19 +69,20 @@ pub enum Expression {
 fn continue_expr(token_iter: &mut TokenIter, left: Expression) -> SyntaxResult<Expression> {
     if let Some(next_token) = token_iter.peek() {
         match next_token {
-            TokenTree::Group(group) => {
-                match group.delimiter() {
-                    Delimiter::Parenthesis => {
-                        let (paren, inner) = token_iter.parenthesized()?;
-                        continue_expr(token_iter, Expression::Call(Box::new(left), paren, inner))
-                    }
-                    Delimiter::Bracket => {
-                        let (bracket, inner) = token_iter.bracketed()?;
-                        continue_expr(token_iter, Expression::Index(Box::new(left), bracket, Box::new(inner)))
-                    }
-                    _ => Ok(left),
+            TokenTree::Group(group) => match group.delimiter() {
+                Delimiter::Parenthesis => {
+                    let (paren, inner) = parenthesized(token_iter.parse()?)?;
+                    continue_expr(token_iter, Expression::Call(Box::new(left), paren, inner))
                 }
-            }
+                Delimiter::Bracket => {
+                    let (bracket, inner) = bracketed(token_iter.parse()?)?;
+                    continue_expr(
+                        token_iter,
+                        Expression::Index(Box::new(left), bracket, Box::new(inner)),
+                    )
+                }
+                _ => Ok(left),
+            },
             TokenTree::Punct(punct) => {
                 let token = punct.inner();
                 if let PunctToken::Dot = token {
@@ -90,7 +95,7 @@ fn continue_expr(token_iter: &mut TokenIter, left: Expression) -> SyntaxResult<E
                     Ok(left)
                 }
             }
-            _ => Ok(left)
+            _ => Ok(left),
         }
     } else {
         Ok(left)
@@ -104,7 +109,7 @@ impl Parse for Expression {
             TokenTree::Ident(ident) => Self::Variable(ident),
             TokenTree::Group(group) => {
                 if group.delimiter() == Delimiter::Parenthesis {
-                    let (paren, inner) = token_iter.parenthesized()?;
+                    let (paren, inner) = parenthesized(group)?;
                     Self::Parenthesized(paren, Box::new(inner))
                 } else {
                     return group.unexpected();
@@ -128,10 +133,16 @@ impl Parse for Expression {
     }
 }
 
-trait UnexpectedToken where Self: Sized {
+trait UnexpectedToken
+where
+    Self: Sized,
+{
     fn to_token_tree(self) -> TokenTree;
     fn unexpected<T>(self) -> SyntaxResult<T> {
-        Err(SyntaxError::UnexpectedToken(self.to_token_tree(), "expression"))
+        Err(SyntaxError::UnexpectedToken(
+            self.to_token_tree(),
+            "expression",
+        ))
     }
 }
 

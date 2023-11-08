@@ -1,7 +1,6 @@
 use crate::{
-    token::{Token, Ident},
-    TokenTree, Sealed,
-    Span, Spanned,
+    token::{Ident, Token},
+    Sealed, Span, Spanned, TokenTree,
 };
 
 macro_rules! define_keyword {
