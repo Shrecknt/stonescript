@@ -48,16 +48,22 @@ macro_rules! define_punct {
                     span: Span
                 }
 
+                impl From<Punct> for Option<$variant> {
+                    fn from(value: Punct) -> Self {
+                        if let Punct { span, value: PunctToken::$variant } = value {
+                            Some($variant { span })
+                        } else {
+                            None
+                        }
+                    }
+                }
+
                 impl Sealed for $variant {}
                 impl Token for $variant {
                     const NAME: &'static str = stringify!($variant);
 
                     fn parse_token(token_tree: TokenTree) -> Option<Self> {
-                        if let Punct { span, value: PunctToken::$variant } = Punct::parse_token(token_tree)? {
-                            Some(Self { span })
-                        } else {
-                            None
-                        }
+                        Punct::parse_token(token_tree)?.into()
                     }
                 }
 

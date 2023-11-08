@@ -1,21 +1,30 @@
-use super::{Assignment, Declaration, Expression, FunctionDecl};
+use super::{Assignment, Declaration, Expression, FunctionDecl, Block};
 use crate::{
-    token::{Assign, Colon, Function, Ident, Static, Token},
-    Parse, SyntaxResult, TokenIter,
+    token::{Assign, Colon, Function, Ident, Static, Token, Delimiter, Semicolon},
+    Parse, SyntaxResult, TokenIter, TokenTree,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
+    Block(Block),
     Function(FunctionDecl),
     Declaration(Declaration),
-    Expression(Expression),
+    Expression(Expression, Semicolon),
     Assignment(Assignment),
 }
 
 impl Parse for Statement {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
         let next_token = token_iter.expect_peek()?;
-        if let Some(_) = Function::parse_token(next_token.clone()) {
+        if let TokenTree::Group(group) = next_token {
+            if group.delimiter() == Delimiter::Brace {
+                Ok(Self::Block(token_iter.parse()?))
+            } else {
+                let expr = token_iter.parse()?;
+                let semicolon = token_iter.parse()?;
+                Ok(Self::Expression(expr, semicolon))
+            }
+        } else if let Some(_) = Function::parse_token(next_token.clone()) {
             Ok(Self::Function(token_iter.parse()?))
         } else if let Some(_) = Static::parse_token(next_token.clone()) {
             let next2_token = token_iter.expect_peek_ahead(1)?;
@@ -31,32 +40,14 @@ impl Parse for Statement {
             } else if let Some(_) = Assign::parse_token(next2_token) {
                 Ok(Self::Assignment(token_iter.parse()?))
             } else {
-                Ok(Self::Expression(token_iter.parse()?))
+                let expr = token_iter.parse()?;
+                let semicolon = token_iter.parse()?;
+                Ok(Self::Expression(expr, semicolon))
             }
         } else {
-            Ok(Self::Expression(token_iter.parse()?))
+            let expr = token_iter.parse()?;
+            let semicolon = token_iter.parse()?;
+            Ok(Self::Expression(expr, semicolon))
         }
-
-        // Ok(match  {
-        //     TokenTree::Ident(ident) => {
-        //         if let
-        //     }
-        //     _ => {
-        //         Self::Expression(token_iter.parse()?)
-        //     }
-        // })
-        // if let Some(function_token) =  {
-        //     return Ok(Statement::Function(FunctionDecl::parse(token_iter)?));
-        // }
-
-        // if let Some(staticness) = token_iter.parse::<Option<Static>>()? {
-        //     return Ok(
-        //         if let Some(function_token) = token_iter.parse::<Option<Function>>()? {
-        //             Statement::Function(FunctionDecl::parse(token_iter)?)
-        //         } else {
-        //             Statement::
-        //         }
-        //     )
-        // }
     }
 }
