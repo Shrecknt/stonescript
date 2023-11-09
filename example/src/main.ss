@@ -5,7 +5,7 @@ static function main(): void {
     static loaded: int = test;
     {
         // This is a comment
-        static scoped: int = 0i;
+        static scoped: float = 0.0;
     }
     tick();
     command("say loading!");

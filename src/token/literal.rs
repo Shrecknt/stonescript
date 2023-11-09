@@ -84,7 +84,11 @@ macro_rules! parse_number {
                 )+
                 _ => {
                     span = $cursor.into_span();
-                    number_or_error!(buffer span; Int)
+                    if buffer.contains('.') {
+                        number_or_error!(buffer span; Float)
+                    } else {
+                        number_or_error!(buffer span; Int)
+                    }
                 }
             };
 
