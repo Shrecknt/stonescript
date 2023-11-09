@@ -1,7 +1,7 @@
 static test: int = 1 + a / (2 * cat);
 test = testing;
 
-static function main(): void {
+static function main(): int {
     static loaded: int = test;
     {
         // This is a comment
@@ -9,6 +9,8 @@ static function main(): void {
     }
     tick();
     command("say loading!");
+
+    return 1;
 }
 
 static function tick(): void {

@@ -1,6 +1,6 @@
 use super::{span_of_two, Assignment, Block, Declaration, Expression, FunctionDecl, ToTokens};
 use crate::{
-    token::{Assign, Colon, Delimiter, Function, Semicolon, Static},
+    token::{Assign, Colon, Delimiter, Function, Return, Semicolon, Static},
     Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
 };
 
@@ -11,6 +11,7 @@ pub enum Statement {
     Declaration(Declaration),
     Expression(Expression, Semicolon),
     Assignment(Assignment),
+    Return(Return, Expression, Semicolon),
 }
 
 impl Parse for Statement {
@@ -22,6 +23,13 @@ impl Parse for Statement {
                 }
             }
             TokenTree::Ident(ident) => {
+                if Return::is_ident(ident) {
+                    let return_token = token_iter.parse()?;
+                    let expr = token_iter.parse()?;
+                    let semicolon = token_iter.parse()?;
+                    return Ok(Self::Return(return_token, expr, semicolon));
+                }
+
                 if Function::is_ident(ident) {
                     return Ok(Self::Function(token_iter.parse()?));
                 }
@@ -63,6 +71,9 @@ impl Spanned for Statement {
             Self::Declaration(decl) => decl.span(),
             Self::Assignment(assign) => assign.span(),
             Self::Expression(expr, semicolon) => span_of_two(expr.span(), semicolon.span()),
+            Self::Return(return_token, _expr, semicolon) => {
+                span_of_two(return_token.span(), semicolon.span())
+            }
         }
     }
 }
@@ -75,6 +86,11 @@ impl ToTokens for Statement {
             Self::Declaration(decl) => decl.write_into_stream(stream),
             Self::Assignment(assign) => assign.write_into_stream(stream),
             Self::Expression(expr, semicolon) => {
+                expr.write_into_stream(stream);
+                semicolon.write_into_stream(stream);
+            }
+            Self::Return(return_token, expr, semicolon) => {
+                return_token.write_into_stream(stream);
                 expr.write_into_stream(stream);
                 semicolon.write_into_stream(stream);
             }
