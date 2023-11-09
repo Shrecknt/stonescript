@@ -128,7 +128,7 @@ impl<'a, T: FusedIterator<Item = char> + 'a> Cursor<'a, T> {
         Err(ParseError::UnexpectedToken(
             start.to_string(),
             "token tree",
-            Span::new(self.inner().position, 1),
+            Span::new(start_pos, 1),
         ))
     }
 }

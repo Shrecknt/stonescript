@@ -15,17 +15,14 @@ impl TokenIter<'_> {
         }
     }
 
-    pub(crate) fn peek_ahead<'a>(&'a mut self, index: usize) -> Option<&'a TokenTree> {
-        // SAFETY: `self.buffer` needs to be immutably borrowed for `'a`
-        //         However, we need to borrow self mutably for `'2` to run `self.fill`
-        //         The item reference does not exist when `self.fill` is run,
-        //         and as such we can cast `'1` to `'a`
+    pub(crate) fn peek_ahead(&mut self, index: usize) -> Option<&TokenTree> {
+        let inc_index = index + 1;
+        let buf_len = self.buffer.len();
 
-        if let Some(item) = self.buffer.get(index) {
-            return Some(unsafe { &*(item as *const TokenTree) });
+        if buf_len < inc_index {
+            self.fill(inc_index - buf_len);
         }
 
-        self.fill(index - self.buffer.len() + 1);
         self.buffer.get(index)
     }
 

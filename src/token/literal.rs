@@ -143,6 +143,6 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Literal {
 
 impl fmt::Debug for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.value)
+        self.value.fmt(f)
     }
 }
