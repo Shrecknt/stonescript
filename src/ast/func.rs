@@ -40,8 +40,7 @@ pub struct FunctionDecl {
     pub staticness: Option<Static>,
     pub function_token: Function,
     pub ident: Ident,
-    pub paren: Parenthesis,
-    pub args: Punctuated<FunctionArg, Comma>,
+    pub args: (Parenthesis, Punctuated<FunctionArg, Comma>),
     pub colon: Colon,
     pub return_type: Type,
     pub block: Block,
@@ -61,8 +60,7 @@ impl Parse for FunctionDecl {
             staticness,
             function_token,
             ident,
-            paren,
-            args,
+            args: (paren, args),
             colon,
             return_type,
             block,
@@ -88,7 +86,7 @@ impl ToTokens for FunctionDecl {
 
         self.function_token.write_into_stream(stream);
         self.ident.write_into_stream(stream);
-        self.paren.into_group(self.args).write_into_stream(stream);
+        self.args.0.into_group(self.args.1).write_into_stream(stream);
         self.colon.write_into_stream(stream);
         self.return_type.write_into_stream(stream);
         self.block.write_into_stream(stream);

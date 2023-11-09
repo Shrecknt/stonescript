@@ -1,4 +1,4 @@
-use crate::{token::{Ident, ToTokenTree}, Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree};
+use crate::{token::{Ident, ToTokenTree}, Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree, ast_item};
 
 macro_rules! define_primitive {
     ($($variant:ident => $value:literal),+) => {
@@ -49,11 +49,12 @@ define_primitive!(
     String => "string"
 );
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Type {
-    Primitive(Primitive),
-    UserDefined(Ident),
-}
+ast_item!(
+    pub enum Type {
+        Primitive(Primitive),
+        UserDefined(Ident)
+    }
+);
 
 impl Parse for Type {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
@@ -62,24 +63,6 @@ impl Parse for Type {
             Ok(Self::Primitive(primitive))
         } else {
             Ok(Self::UserDefined(ident))
-        }
-    }
-}
-
-impl Spanned for Type {
-    fn span(&self) -> Span {
-        match self {
-            Self::Primitive(primitive) => primitive.span(),
-            Self::UserDefined(ident) => ident.span(),
-        }
-    }
-}
-
-impl ToTokenTree for Type {
-    fn to_token_tree(self) -> TokenTree {
-        match self {
-            Self::Primitive(primitive) => primitive.to_token_tree(),
-            Self::UserDefined(ident) => ident.to_token_tree(),
         }
     }
 }

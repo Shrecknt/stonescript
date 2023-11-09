@@ -6,7 +6,9 @@ pub use self::{
     func::{FunctionArg, FunctionDecl},
     punctuated::Punctuated,
     stmt::Statement,
-    ty::{Type, Primitive},
+    r#type::{Type, Primitive},
+    r#while::WhileLoop,
+    r#for::ForLoop,
 };
 use crate::{
     token::{Brace, Bracket, Delimiter, Group, Parenthesis, ToTokenTree},
@@ -22,7 +24,9 @@ mod parse;
 pub(super) mod prelude;
 mod punctuated;
 mod stmt;
-mod ty;
+mod r#type;
+mod r#while;
+mod r#for;
 
 macro_rules! define_group_parsers {
     ($($method_name:ident: $delimiter:ident),+) => {

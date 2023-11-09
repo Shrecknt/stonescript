@@ -5,21 +5,23 @@ use crate::{
         LessThan, LessThanEquals, Literal, Minus, Not, NotEquals, Or, Parenthesis, Percent, Plus,
         PunctToken, Slash, Star, ToTokenTree,
     },
-    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree,
+    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree, ast_item,
 };
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum UnaryOp {
-    Not(Not),
-    Negate(Minus),
-}
+ast_item!(
+    pub enum UnaryOp {
+        Not(Not),
+        Negate(Minus)
+    }
+);
 
 macro_rules! define_binary_op {
     ($($name:ident : $inner:ident),+) => {
-        #[derive(Debug, Clone, PartialEq)]
-        pub enum BinaryOp {
-            $($name($inner),)+
-        }
+        ast_item!(
+            pub enum BinaryOp {
+                $($name($inner)),+
+            }
+        );
 
         impl BinaryOp {
             fn parse(token_iter: &mut TokenIter, punct: PunctToken) -> SyntaxResult<Option<(BinaryOp, Box<Expression>)>> {
@@ -33,26 +35,6 @@ macro_rules! define_binary_op {
                     )+
                     _ => None
                 })
-            }
-        }
-
-        impl Spanned for BinaryOp {
-            fn span(&self) -> Span {
-                match self {
-                    $(
-                        Self::$name(inner) => inner.span(),
-                    )+
-                }
-            }
-        }
-
-        impl ToTokenTree for BinaryOp {
-            fn to_token_tree(self) -> TokenTree {
-                match self {
-                    $(
-                        Self::$name(inner) => inner.to_token_tree(),
-                    )+
-                }
             }
         }
     }

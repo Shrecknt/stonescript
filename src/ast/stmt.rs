@@ -1,35 +1,23 @@
-use super::{parenthesized, Assignment, Block, Declaration, Expression, FunctionDecl, ToTokens};
+use super::{Assignment, Block, Declaration, Expression, FunctionDecl, ForLoop, WhileLoop};
 use crate::{
     token::{
-        Assign, Colon, Delimiter, For, Function, Let, Parenthesis, Return, Semicolon, Static, While,
+        Assign, Colon, Delimiter, For, Function, Let, Return, Semicolon, Static, While,
     },
-    Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
+    Parse, Span, SyntaxResult, TokenIter, TokenTree, ast_item,
 };
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Statement {
-    Block(Block),
-    Function(FunctionDecl),
-    Declaration(Declaration),
-    Expression(Expression, Semicolon),
-    Assignment(Assignment),
-    Return(Return, Expression, Semicolon),
-    While {
-        while_token: While,
-        paren: Parenthesis,
-        condition: Expression,
-        block: Block,
-    },
-    For {
-        for_token: For,
-        paren: Parenthesis,
-        init: Declaration,
-        condition: Expression,
-        semicolon: Semicolon,
-        update: Box<Statement>,
-        block: Block,
-    },
-}
+ast_item!(
+    pub enum Statement {
+        Block(Block),
+        Function(FunctionDecl),
+        Declaration(Declaration),
+        Expression((Expression, Semicolon)),
+        Assignment(Assignment),
+        Return((Return, Expression, Semicolon)),
+        While(WhileLoop),
+        For(Box<ForLoop>)
+    }
+);
 
 impl Parse for Statement {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
@@ -41,40 +29,15 @@ impl Parse for Statement {
             }
             TokenTree::Ident(ident) => {
                 if Return::is_ident(ident) {
-                    let return_token = token_iter.parse()?;
-                    let expr = token_iter.parse()?;
-                    let semicolon = token_iter.parse()?;
-                    return Ok(Self::Return(return_token, expr, semicolon));
+                    return Ok(Self::Return(token_iter.parse()?));
                 }
 
                 if While::is_ident(ident) {
-                    let while_token = token_iter.parse()?;
-                    let (paren, condition) = parenthesized(token_iter.parse()?)?;
-                    let block = token_iter.parse()?;
-
-                    return Ok(Self::While {
-                        while_token,
-                        paren,
-                        condition,
-                        block,
-                    });
+                    return Ok(Self::While(token_iter.parse()?));
                 }
 
                 if For::is_ident(ident) {
-                    let for_token = token_iter.parse()?;
-                    let (paren, (init, condition, semicolon, update)) =
-                        parenthesized(token_iter.parse()?)?;
-                    let block = token_iter.parse()?;
-
-                    return Ok(Self::For {
-                        for_token,
-                        paren,
-                        init,
-                        condition,
-                        semicolon,
-                        update: Box::new(update),
-                        block,
-                    });
+                    return Ok(Self::For(Box::new(token_iter.parse()?)));
                 }
 
                 if Function::is_ident(ident) {
@@ -109,84 +72,6 @@ impl Parse for Statement {
         }
 
         let expr = token_iter.parse()?;
-        let semicolon = token_iter.parse()?;
-        Ok(Self::Expression(expr, semicolon))
-    }
-}
-
-impl Spanned for Statement {
-    fn span(&self) -> Span {
-        match self {
-            Self::Block(block) => block.span(),
-            Self::Function(func) => func.span(),
-            Self::Declaration(decl) => decl.span(),
-            Self::Assignment(assign) => assign.span(),
-            Self::Expression(expr, semicolon) => {
-                Span::from_start_end(expr.span(), semicolon.span())
-            }
-            Self::Return(return_token, _expr, semicolon) => {
-                Span::from_start_end(return_token.span(), semicolon.span())
-            }
-            Self::While {
-                while_token,
-                paren: _,
-                condition: _,
-                block,
-            } => Span::from_start_end(while_token.span(), block.span()),
-            Self::For {
-                for_token,
-                paren: _,
-                init: _,
-                condition: _,
-                semicolon: _,
-                update: _,
-                block,
-            } => Span::from_start_end(for_token.span(), block.span()),
-        }
-    }
-}
-
-impl ToTokens for Statement {
-    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
-        match self {
-            Self::Block(block) => block.write_into_stream(stream),
-            Self::Function(func) => func.write_into_stream(stream),
-            Self::Declaration(decl) => decl.write_into_stream(stream),
-            Self::Assignment(assign) => assign.write_into_stream(stream),
-            Self::Expression(expr, semicolon) => {
-                expr.write_into_stream(stream);
-                semicolon.write_into_stream(stream);
-            }
-            Self::Return(return_token, expr, semicolon) => {
-                return_token.write_into_stream(stream);
-                expr.write_into_stream(stream);
-                semicolon.write_into_stream(stream);
-            }
-            Self::While {
-                while_token,
-                paren,
-                condition,
-                block,
-            } => {
-                while_token.write_into_stream(stream);
-                paren.into_group(condition).write_into_stream(stream);
-                block.write_into_stream(stream);
-            }
-            Self::For {
-                for_token,
-                paren,
-                init,
-                condition,
-                semicolon,
-                update,
-                block,
-            } => {
-                for_token.write_into_stream(stream);
-                paren
-                    .into_group((init, condition, semicolon, *update))
-                    .write_into_stream(stream);
-                block.write_into_stream(stream);
-            }
-        }
+        Ok(Self::Expression(expr))
     }
 }

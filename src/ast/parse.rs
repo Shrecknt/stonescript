@@ -125,6 +125,23 @@ macro_rules! tuple_parse_impl {
             }
         }
 
+        #[allow(non_camel_case_types)]
+        impl<T: Token, $fn: Parse, $($n: Parse,)*> Parse for Option<(T, $fn, $($n,)*)> {
+            fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
+                if let Some(token) = token_iter.parse()? {
+                    let $fn = token_iter.parse()?;
+
+                    $(
+                        let $n = token_iter.parse()?;
+                    )*
+
+                    Ok(Some((token, $fn, $($n,)*)))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+
         tuple_parse_impl!($($n)*);
     }
 }
