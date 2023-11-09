@@ -47,7 +47,7 @@ fn main() -> eyre::Result<()> {
     let tokenized = parse_from_reader(entrypoint_file)?;
 
     let statements: Vec<Statement> = TokenIter::from(&tokenized).parse()?;
-    println!("{:#?}", statements.into_tokens());
+    println!("\nAST:\n\n{:#?}", statements.into_tokens());
 
     Ok(())
 }

@@ -159,15 +159,21 @@ impl fmt::Debug for Group {
                     f.write_str(s)?;
                     f.write_char('\n')?;
                 }
-
-                f.write_char('\n')?;
             } else {
-                write!(f, "{:#?}", self.tokens)?;
+                self.tokens.fmt(f)?;
             }
         } else {
-            write!(f, "{:?}", self.tokens)?;
+            self.tokens.fmt(f)?;
         }
 
-        f.write_char(self.delimiter.close())
+        f.write_char(self.delimiter.close())?;
+        if f.alternate() {
+            if let Delimiter::Brace = self.delimiter {
+                f.write_char('\n')?;
+                f.write_char('\n')?;
+            }
+        }
+
+        Ok(())
     }
 }

@@ -1,6 +1,12 @@
-use super::{cursor::Cursor, Group, Ident, Literal, ParseResult, Punct, Token, ToTokenTree};
+use super::{
+    cursor::Cursor, Delimiter, Group, Ident, Literal, ParseResult, Punct, PunctToken, ToTokenTree,
+    Token,
+};
 use crate::{Sealed, Span, Spanned};
-use std::{fmt, iter::FusedIterator};
+use std::{
+    fmt::{self, Write},
+    iter::FusedIterator,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -33,7 +39,7 @@ macro_rules! define_token_tree {
         impl fmt::Debug for TokenTree {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
-                    $(Self::$token(value) => write!(f, "{:?}", value),)+
+                    $(Self::$token(value) => value.fmt(f),)+
                 }
             }
         }
@@ -77,15 +83,78 @@ impl From<Vec<TokenTree>> for TokenStream {
     }
 }
 
+fn handle_next_char(next_char: Option<&TokenTree>, f: &mut fmt::Formatter) -> fmt::Result {
+    if let Some(next_char) = next_char {
+        match next_char {
+            TokenTree::Group(group) => match group.delimiter() {
+                Delimiter::Bracket | Delimiter::Parenthesis => Ok(()),
+                Delimiter::Brace => f.write_char(' '),
+            },
+            TokenTree::Ident(_) => f.write_char(' '),
+            TokenTree::Literal(_) => f.write_char(' '),
+            TokenTree::Punct(punct) => match punct.inner() {
+                PunctToken::And
+                | PunctToken::Equals
+                | PunctToken::GreaterThan
+                | PunctToken::GreaterThanEquals
+                | PunctToken::LessThan
+                | PunctToken::LessThanEquals
+                | PunctToken::Minus
+                | PunctToken::Star
+                | PunctToken::Slash
+                | PunctToken::Plus
+                | PunctToken::Percent
+                | PunctToken::Or
+                | PunctToken::Assign => f.write_char(' '),
+                _ => Ok(()),
+            },
+        }
+    } else {
+        Ok(())
+    }
+}
+
 impl fmt::Debug for TokenStream {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if f.alternate() {
-            for token in &self.0 {
-                write!(f, "{:#?} ", token)?;
-            }
-        } else {
-            for token in &self.0 {
-                write!(f, "{:?} ", token)?;
+        let mut iter = self.0.iter().peekable();
+        while let Some(cur_char) = iter.next() {
+            let next_char = iter.peek().copied();
+
+            cur_char.fmt(f)?;
+
+            match cur_char {
+                TokenTree::Ident(_) | TokenTree::Literal(_) => {
+                    handle_next_char(next_char, f)?
+                }
+                TokenTree::Group(_) => if !f.alternate() {
+                    handle_next_char(next_char, f)?
+                }
+                TokenTree::Punct(punct) => match punct.inner() {
+                    PunctToken::And
+                    | PunctToken::Equals
+                    | PunctToken::GreaterThan
+                    | PunctToken::GreaterThanEquals
+                    | PunctToken::LessThan
+                    | PunctToken::LessThanEquals
+                    | PunctToken::Minus
+                    | PunctToken::Star
+                    | PunctToken::Slash
+                    | PunctToken::Plus
+                    | PunctToken::Percent
+                    | PunctToken::Or
+                    | PunctToken::Assign
+                    | PunctToken::Colon => f.write_char(' ')?,
+                    PunctToken::Semicolon => {
+                        if let Some(_) = next_char {
+                            if f.alternate() {
+                                f.write_char('\n')?
+                            } else {
+                                f.write_char(' ')?
+                            }
+                        }
+                    }
+                    _ => (),
+                },
             }
         }
 

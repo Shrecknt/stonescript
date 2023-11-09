@@ -20,9 +20,9 @@ macro_rules! define_punct {
             $($variant),+
         }
 
-        impl From<PunctToken> for &'static str {
-            fn from(value: PunctToken) -> &'static str {
-                match value {
+        impl PunctToken {
+            pub fn to_str(&self) -> &'static str {
+                match self {
                     $(PunctToken::$variant => concat!($char1 $(, $char2)?),)+
                 }
             }
@@ -120,13 +120,7 @@ define_punct!(
 
 impl fmt::Debug for PunctToken {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if f.alternate() {
-            if let PunctToken::Semicolon = self {
-                return f.write_str(";\n");
-            }
-        }
-        
-        f.write_str(<&'static str>::from(*self))
+        f.write_str(self.to_str())
     }
 }
 
