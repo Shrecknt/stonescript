@@ -113,7 +113,7 @@ impl<'a, T: FusedIterator<Item = char> + 'a> Cursor<'a, T> {
 
         for parser in Self::PARSERS {
             let cursor = Self {
-                inner: self.inner.clone(),
+                inner: self.inner,
                 start_pos,
             };
 

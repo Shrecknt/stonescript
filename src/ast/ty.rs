@@ -7,10 +7,10 @@ macro_rules! define_primitive {
             $($variant { span: Span }),+
         }
 
-        impl From<Ident> for Option<Primitive> {
-            fn from(value: Ident) -> Self {
-                match value.inner() {
-                    $($value => Some(Primitive::$variant { span: value.span() }),)+
+        impl Primitive {
+            fn from_ident(ident: &Ident) -> Option<Self> {
+                match ident.inner() {
+                    $($value => Some(Primitive::$variant { span: ident.span() }),)+
                     _ => None,
                 }
             }
@@ -58,7 +58,7 @@ pub enum Type {
 impl Parse for Type {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
         let ident: Ident = token_iter.parse()?;
-        if let Some(primitive) = ident.clone().into() {
+        if let Some(primitive) = Primitive::from_ident(&ident) {
             Ok(Self::Primitive(primitive))
         } else {
             Ok(Self::UserDefined(ident))

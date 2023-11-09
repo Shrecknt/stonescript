@@ -10,7 +10,7 @@ pub use self::{
 };
 use crate::{
     token::{Brace, Bracket, Delimiter, Group, Parenthesis, ToTokenTree},
-    Parse, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree, TokenStream, Span,
+    Parse, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree, TokenStream,
 };
 
 mod assign;
@@ -46,10 +46,6 @@ define_group_parsers!(
     parenthesized: Parenthesis
 );
 
-fn span_of_two(start: Span, end: Span) -> Span {
-    Span::new(start.index, end.index + end.width - start.index)
-}
-
 pub trait ToTokens: Spanned {
     fn write_into_stream(self, stream: &mut Vec<TokenTree>);
     fn into_tokens(self) -> TokenStream where Self: Sized {
@@ -65,18 +61,6 @@ impl<T: ToTokenTree + Spanned> ToTokens for T {
     }
 }
 
-impl<T: Spanned> Spanned for Vec<T> {
-    fn span(&self) -> Span {
-        if let [item] = self.as_slice() {
-            item.span()
-        } else if let [start_item, .., end_item] = self.as_slice() {
-            span_of_two(start_item.span(), end_item.span())
-        } else {
-            panic!("totokens should not return an empty stream")
-        }
-    }
-}
-
 impl<T: ToTokens> ToTokens for Vec<T> {
     fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
         for item in self {
@@ -84,3 +68,29 @@ impl<T: ToTokens> ToTokens for Vec<T> {
         }
     }
 }
+
+macro_rules! reverse_tuple {
+    ($tup:expr, $fni:tt $($ni:tt)*) => {
+        ($tup.$fni, $($tup.$ni,)*)
+    }
+}
+
+macro_rules! tuple_totokens_impl {
+    () => {};
+    ($fn:ident $fni:tt $($n:ident $ni:tt)*) => {
+        #[allow(non_camel_case_types)]
+        impl<$fn: ToTokens, $($n: ToTokens,)*> ToTokens for ($fn, $($n,)*) {
+            fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+                let rev_self = reverse_tuple!(self, $fni $($ni)*);
+                rev_self.$fni.write_into_stream(stream);
+                $(
+                    rev_self.$ni.write_into_stream(stream);
+                )*
+            }
+        }
+
+        tuple_totokens_impl!($($n $ni)*);
+    }
+}
+
+tuple_totokens_impl!(a 9 b 8 c 7 d 6 e 5 f 4 g 3 h 2 i 1 j 0);

@@ -150,17 +150,13 @@ impl fmt::Debug for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_char(self.delimiter.open())?;
 
-        if f.alternate() {
-            if let Delimiter::Brace = self.delimiter {
-                f.write_char('\n')?;
+        if f.alternate() && self.tokens.0.len() > 1 {
+            f.write_char('\n')?;
 
-                for s in format!("{:#?}", self.tokens).split('\n') {
-                    f.write_str("    ")?;
-                    f.write_str(s)?;
-                    f.write_char('\n')?;
-                }
-            } else {
-                self.tokens.fmt(f)?;
+            for s in format!("{:#?}", self.tokens).split('\n') {
+                f.write_str("    ")?;
+                f.write_str(s)?;
+                f.write_char('\n')?;
             }
         } else {
             self.tokens.fmt(f)?;

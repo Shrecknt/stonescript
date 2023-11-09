@@ -1,4 +1,4 @@
-use super::{bracketed, parenthesized, span_of_two, Punctuated, ToTokens};
+use super::{bracketed, parenthesized, Punctuated, ToTokens};
 use crate::{
     token::{
         And, Bracket, Comma, Delimiter, Dot, Equals, GreaterThan, GreaterThanEquals, Ident,
@@ -159,13 +159,13 @@ impl Spanned for Expression {
             Self::Literal(literal) => literal.span(),
             Self::Variable(variable) => variable.span(),
             Self::Parenthesized(paren, _expr) => paren.span(),
-            Self::Property(left, _dot, name) => span_of_two(left.span(), name.span()),
-            Self::Call(left, paren, _args) => span_of_two(left.span(), paren.span()),
-            Self::Index(left, bracket, _inner) => span_of_two(left.span(), bracket.span()),
-            Self::BinaryOp(left, _op, right) => span_of_two(left.span(), right.span()),
+            Self::Property(left, _dot, name) => Span::from_start_end(left.span(), name.span()),
+            Self::Call(left, paren, _args) => Span::from_start_end(left.span(), paren.span()),
+            Self::Index(left, bracket, _inner) => Span::from_start_end(left.span(), bracket.span()),
+            Self::BinaryOp(left, _op, right) => Span::from_start_end(left.span(), right.span()),
             Self::UnaryOp(op, expr) => match op {
-                UnaryOp::Negate(minus) => span_of_two(minus.span(), expr.span()),
-                UnaryOp::Not(not) => span_of_two(not.span(), expr.span()),
+                UnaryOp::Negate(minus) => Span::from_start_end(minus.span(), expr.span()),
+                UnaryOp::Not(not) => Span::from_start_end(not.span(), expr.span()),
             },
         }
     }
@@ -204,7 +204,7 @@ impl ToTokens for Expression {
                     not.write_into_stream(stream);
                     expr.write_into_stream(stream);
                 }
-            }
+            },
         }
     }
 }

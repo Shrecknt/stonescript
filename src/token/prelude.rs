@@ -123,7 +123,18 @@ impl fmt::Debug for TokenStream {
             cur_char.fmt(f)?;
 
             match cur_char {
-                TokenTree::Ident(_) | TokenTree::Literal(_) => handle_next_char(next_char, f)?,
+                TokenTree::Literal(_) => handle_next_char(next_char, f)?,
+                TokenTree::Ident(ident) => {
+                    if ident.inner() == "for" {
+                        if let Some(TokenTree::Group(group)) = next_char {
+                            if group.delimiter() == Delimiter::Parenthesis {
+                                f.write_char(' ')?;
+                            }
+                        }
+                    }
+
+                    handle_next_char(next_char, f)?
+                }
                 TokenTree::Group(_) => {
                     if !f.alternate() {
                         handle_next_char(next_char, f)?

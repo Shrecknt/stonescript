@@ -1,6 +1,8 @@
-use super::{span_of_two, Assignment, Block, Declaration, Expression, FunctionDecl, ToTokens};
+use super::{parenthesized, Assignment, Block, Declaration, Expression, FunctionDecl, ToTokens};
 use crate::{
-    token::{Assign, Colon, Delimiter, Function, Return, Semicolon, Static},
+    token::{
+        Assign, Colon, Delimiter, For, Function, Let, Parenthesis, Return, Semicolon, Static, While,
+    },
     Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
 };
 
@@ -12,6 +14,21 @@ pub enum Statement {
     Expression(Expression, Semicolon),
     Assignment(Assignment),
     Return(Return, Expression, Semicolon),
+    While {
+        while_token: While,
+        paren: Parenthesis,
+        condition: Expression,
+        block: Block,
+    },
+    For {
+        for_token: For,
+        paren: Parenthesis,
+        init: Declaration,
+        condition: Expression,
+        semicolon: Semicolon,
+        update: Box<Statement>,
+        block: Block,
+    },
 }
 
 impl Parse for Statement {
@@ -30,8 +47,42 @@ impl Parse for Statement {
                     return Ok(Self::Return(return_token, expr, semicolon));
                 }
 
+                if While::is_ident(ident) {
+                    let while_token = token_iter.parse()?;
+                    let (paren, condition) = parenthesized(token_iter.parse()?)?;
+                    let block = token_iter.parse()?;
+
+                    return Ok(Self::While {
+                        while_token,
+                        paren,
+                        condition,
+                        block,
+                    });
+                }
+
+                if For::is_ident(ident) {
+                    let for_token = token_iter.parse()?;
+                    let (paren, (init, condition, semicolon, update)) =
+                        parenthesized(token_iter.parse()?)?;
+                    let block = token_iter.parse()?;
+
+                    return Ok(Self::For {
+                        for_token,
+                        paren,
+                        init,
+                        condition,
+                        semicolon,
+                        update: Box::new(update),
+                        block,
+                    });
+                }
+
                 if Function::is_ident(ident) {
                     return Ok(Self::Function(token_iter.parse()?));
+                }
+
+                if Let::is_ident(ident) {
+                    return Ok(Self::Declaration(token_iter.parse()?));
                 }
 
                 if Static::is_ident(ident) {
@@ -70,10 +121,27 @@ impl Spanned for Statement {
             Self::Function(func) => func.span(),
             Self::Declaration(decl) => decl.span(),
             Self::Assignment(assign) => assign.span(),
-            Self::Expression(expr, semicolon) => span_of_two(expr.span(), semicolon.span()),
-            Self::Return(return_token, _expr, semicolon) => {
-                span_of_two(return_token.span(), semicolon.span())
+            Self::Expression(expr, semicolon) => {
+                Span::from_start_end(expr.span(), semicolon.span())
             }
+            Self::Return(return_token, _expr, semicolon) => {
+                Span::from_start_end(return_token.span(), semicolon.span())
+            }
+            Self::While {
+                while_token,
+                paren: _,
+                condition: _,
+                block,
+            } => Span::from_start_end(while_token.span(), block.span()),
+            Self::For {
+                for_token,
+                paren: _,
+                init: _,
+                condition: _,
+                semicolon: _,
+                update: _,
+                block,
+            } => Span::from_start_end(for_token.span(), block.span()),
         }
     }
 }
@@ -93,6 +161,31 @@ impl ToTokens for Statement {
                 return_token.write_into_stream(stream);
                 expr.write_into_stream(stream);
                 semicolon.write_into_stream(stream);
+            }
+            Self::While {
+                while_token,
+                paren,
+                condition,
+                block,
+            } => {
+                while_token.write_into_stream(stream);
+                paren.into_group(condition).write_into_stream(stream);
+                block.write_into_stream(stream);
+            }
+            Self::For {
+                for_token,
+                paren,
+                init,
+                condition,
+                semicolon,
+                update,
+                block,
+            } => {
+                for_token.write_into_stream(stream);
+                paren
+                    .into_group((init, condition, semicolon, *update))
+                    .write_into_stream(stream);
+                block.write_into_stream(stream);
             }
         }
     }

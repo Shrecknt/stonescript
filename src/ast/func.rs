@@ -1,7 +1,7 @@
-use super::{parenthesized, Block, Punctuated, Type, span_of_two, ToTokens};
+use super::{parenthesized, Block, Punctuated, ToTokens, Type};
 use crate::{
     token::{Colon, Comma, Function, Ident, Parenthesis, Static},
-    Parse, SyntaxResult, TokenIter, Spanned, Span, TokenTree,
+    Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,7 +23,7 @@ impl Parse for FunctionArg {
 
 impl Spanned for FunctionArg {
     fn span(&self) -> Span {
-        span_of_two(self.name.span(), self.ty.span())
+        Span::from_start_end(self.name.span(), self.ty.span())
     }
 }
 
@@ -73,9 +73,9 @@ impl Parse for FunctionDecl {
 impl Spanned for FunctionDecl {
     fn span(&self) -> Span {
         if let Some(static_token) = self.staticness {
-            span_of_two(static_token.span(), self.block.span())
+            Span::from_start_end(static_token.span(), self.block.span())
         } else {
-            span_of_two(self.function_token.span(), self.block.span())
+            Span::from_start_end(self.function_token.span(), self.block.span())
         }
     }
 }

@@ -1,4 +1,4 @@
-use super::{Expression, ToTokens, span_of_two};
+use super::{Expression, ToTokens};
 use crate::{
     token::{Assign, Ident, Semicolon},
     Parse, SyntaxResult, TokenIter, Spanned, Span, TokenTree, 
@@ -30,7 +30,7 @@ impl Parse for Assignment {
 
 impl Spanned for Assignment {
     fn span(&self) -> Span {
-        span_of_two(self.variable_name.span(), self.semicolon.span())
+        Span::from_start_end(self.variable_name.span(), self.semicolon.span())
     }
 }
 

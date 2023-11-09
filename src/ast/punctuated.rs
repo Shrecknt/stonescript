@@ -1,6 +1,8 @@
-use crate::{token::{Token, ToTokenTree}, Parse, SyntaxError, SyntaxResult, TokenIter, Spanned, Span, TokenTree};
-
-use super::{span_of_two, ToTokens};
+use super::ToTokens;
+use crate::{
+    token::{ToTokenTree, Token},
+    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Punctuated<T: Parse, P: Token> {
@@ -42,15 +44,15 @@ impl<T: Parse + Spanned, P: Token + Spanned> Spanned for Punctuated<T, P> {
     fn span(&self) -> Span {
         if let Some(last) = &self.last {
             if let Some(first) = self.inner.first() {
-                span_of_two(first.0.span(), last.span())
+                Span::from_start_end(first.0.span(), last.span())
             } else {
                 last.span()
             }
         } else {
             if let [item] = self.inner.as_slice() {
-                span_of_two(item.0.span(), item.1.span())
+                Span::from_start_end(item.0.span(), item.1.span())
             } else if let [start_item, .., end_item] = self.inner.as_slice() {
-                span_of_two(start_item.0.span(), end_item.1.span())
+                Span::from_start_end(start_item.0.span(), end_item.1.span())
             } else {
                 panic!("cannot calculate span of empty punctuated")
             }

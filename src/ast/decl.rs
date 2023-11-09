@@ -1,12 +1,53 @@
-use super::{span_of_two, Expression, ToTokens, Type};
+use super::{Expression, ToTokens, Type};
 use crate::{
-    token::{Assign, Colon, Ident, Semicolon, Static},
-    Parse, Span, Spanned, SyntaxResult, TokenIter,
+    token::{Assign, Colon, Ident, Semicolon, Static, Let},
+    Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree, SyntaxError,
 };
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum DeclStart {
+    Static(Static),
+    Let(Let),
+}
+
+impl Parse for DeclStart {
+    fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
+        match token_iter.expect_peek()? {
+            TokenTree::Ident(ident) => {
+                if Static::is_ident(ident) {
+                    Ok(Self::Static(token_iter.parse()?))
+                } else if Let::is_ident(ident) {
+                    Ok(Self::Let(token_iter.parse()?))
+                } else {
+                    Err(SyntaxError::UnexpectedToken(token_iter.expect_consume()?, "static or let"))
+                }
+            }
+            _ => Err(SyntaxError::UnexpectedToken(token_iter.expect_consume()?, "static or let"))
+        }
+    }
+}
+
+impl Spanned for DeclStart {
+    fn span(&self) -> Span {
+        match self {
+            Self::Static(static_token) => static_token.span(),
+            Self::Let(let_token) => let_token.span(),
+        }
+    }
+}
+
+impl ToTokens for DeclStart {
+    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
+        match self {
+            Self::Static(static_token) => static_token.write_into_stream(stream),
+            Self::Let(let_token) => let_token.write_into_stream(stream),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Declaration {
-    pub staticness: Option<Static>,
+    pub start_token: DeclStart,
     pub ident: Ident,
     pub colon: Colon,
     pub ty: Type,
@@ -16,7 +57,7 @@ pub struct Declaration {
 
 impl Parse for Declaration {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
-        let staticness = token_iter.parse()?;
+        let start_token = token_iter.parse()?;
         let ident = token_iter.parse()?;
         let colon = token_iter.parse()?;
         let ty = token_iter.parse()?;
@@ -31,7 +72,7 @@ impl Parse for Declaration {
         let semicolon = token_iter.parse()?;
 
         Ok(Self {
-            staticness,
+            start_token,
             ident,
             colon,
             ty,
@@ -43,20 +84,13 @@ impl Parse for Declaration {
 
 impl Spanned for Declaration {
     fn span(&self) -> Span {
-        if let Some(static_token) = self.staticness {
-            span_of_two(static_token.span(), self.semicolon.span())
-        } else {
-            span_of_two(self.ident.span(), self.semicolon.span())
-        }
+        Span::from_start_end(self.start_token.span(), self.semicolon.span())
     }
 }
 
 impl ToTokens for Declaration {
     fn write_into_stream(self, stream: &mut Vec<crate::TokenTree>) {
-        if let Some(static_token) = self.staticness {
-            static_token.write_into_stream(stream);
-        }
-
+        self.start_token.write_into_stream(stream);
         self.ident.write_into_stream(stream);
         self.colon.write_into_stream(stream);
         self.ty.write_into_stream(stream);

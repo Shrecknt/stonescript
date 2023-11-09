@@ -5,9 +5,13 @@ static function main(): int {
     static loaded: int = test;
     {
         // This is a comment
-        static scoped: float = 0.0;
+        let scoped: float = 0.0;
     }
-    tick();
+
+    for (let i: int = 0; i < 5; i = i + 1;) {
+        tick();
+    }
+
     command("say loading!");
 
     return 1;

@@ -108,3 +108,25 @@ impl<T: Parse> Parse for Vec<T> {
         Ok(items)
     }
 }
+
+macro_rules! tuple_parse_impl {
+    () => {};
+    ($fn:ident $($n:ident)*) => {
+        #[allow(non_camel_case_types)]
+        impl<$fn: Parse, $($n: Parse,)*> Parse for ($fn, $($n,)*) {
+            fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
+                let $fn = token_iter.parse()?;
+
+                $(
+                    let $n = token_iter.parse()?;
+                )*
+
+                Ok(($fn, $($n,)*))
+            }
+        }
+
+        tuple_parse_impl!($($n)*);
+    }
+}
+
+tuple_parse_impl!(a b c d e f g h i j);

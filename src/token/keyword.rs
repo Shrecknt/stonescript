@@ -51,10 +51,6 @@ define_keyword!(
     For => "for",
     While => "while",
     Let => "let",
-    Const => "const",
     Function => "function",
-    As => "as",
-    Null => "null",
-    Return => "return",
-    Throw => "throw"
+    Return => "return"
 );
