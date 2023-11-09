@@ -154,7 +154,7 @@ impl fmt::Debug for Group {
             if let Delimiter::Brace = self.delimiter {
                 f.write_char('\n')?;
 
-                for s in format!("{:#?}", self.tokens).split_inclusive('\n') {
+                for s in format!("{:#?}", self.tokens).split('\n') {
                     f.write_str("    ")?;
                     f.write_str(s)?;
                     f.write_char('\n')?;
