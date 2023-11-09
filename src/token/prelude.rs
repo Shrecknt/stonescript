@@ -123,11 +123,11 @@ impl fmt::Debug for TokenStream {
             cur_char.fmt(f)?;
 
             match cur_char {
-                TokenTree::Ident(_) | TokenTree::Literal(_) => {
-                    handle_next_char(next_char, f)?
-                }
-                TokenTree::Group(_) => if !f.alternate() {
-                    handle_next_char(next_char, f)?
+                TokenTree::Ident(_) | TokenTree::Literal(_) => handle_next_char(next_char, f)?,
+                TokenTree::Group(_) => {
+                    if !f.alternate() {
+                        handle_next_char(next_char, f)?
+                    }
                 }
                 TokenTree::Punct(punct) => match punct.inner() {
                     PunctToken::And
@@ -143,7 +143,8 @@ impl fmt::Debug for TokenStream {
                     | PunctToken::Percent
                     | PunctToken::Or
                     | PunctToken::Assign
-                    | PunctToken::Colon => f.write_char(' ')?,
+                    | PunctToken::Colon
+                    | PunctToken::Comma => f.write_char(' ')?,
                     PunctToken::Semicolon => {
                         if let Some(_) = next_char {
                             if f.alternate() {
