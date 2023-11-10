@@ -1,4 +1,8 @@
-use crate::{token::{Ident, ToTokenTree}, Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree, ast_item};
+use crate::{
+    ast_item,
+    token::{Ident, ToTokenTree},
+    Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
+};
 
 macro_rules! define_primitive {
     ($($variant:ident => $value:literal),+) => {
@@ -52,7 +56,7 @@ define_primitive!(
 ast_item!(
     pub enum Type {
         Primitive(Primitive),
-        UserDefined(Ident)
+        UserDefined(Ident),
     }
 );
 

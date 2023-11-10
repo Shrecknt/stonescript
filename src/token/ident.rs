@@ -1,4 +1,4 @@
-use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree, ToTokenTree};
+use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, ToTokenTree, TokenTree};
 use crate::{Span, Spanned};
 use std::{fmt, iter::FusedIterator, str::FromStr};
 use thiserror::Error;
@@ -57,7 +57,7 @@ impl Ident {
     pub(crate) fn new_unchecked(span: Span, value: &str) -> Ident {
         Self {
             span,
-            value: XID(value.to_string())
+            value: XID(value.to_string()),
         }
     }
 }

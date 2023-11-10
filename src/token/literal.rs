@@ -1,4 +1,4 @@
-use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, TokenTree, ToTokenTree};
+use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, ToTokenTree, TokenTree};
 use crate::{Span, Spanned};
 use std::{fmt, iter::FusedIterator};
 

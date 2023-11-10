@@ -1,10 +1,15 @@
-use crate::{ast_item, token::{While, Parenthesis}, ast::{Expression, Block}, Spanned, Span};
+use crate::{
+    ast::{Block, Expression},
+    ast_item,
+    token::{Parenthesis, While},
+    Span, Spanned,
+};
 
 ast_item!(
     pub struct WhileLoop {
         while_token: While,
-        condition: (Parenthesis, Expression),
-        block: Block
+        condition: Parenthesis<Expression>,
+        block: Block,
     }
 );
 

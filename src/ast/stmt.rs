@@ -1,9 +1,8 @@
-use super::{Assignment, Block, Declaration, Expression, FunctionDecl, ForLoop, WhileLoop};
+use super::{Assignment, Block, Declaration, Expression, ForLoop, FunctionDecl, WhileLoop};
 use crate::{
-    token::{
-        Assign, Colon, Delimiter, For, Function, Let, Return, Semicolon, Static, While,
-    },
-    Parse, Span, SyntaxResult, TokenIter, TokenTree, ast_item,
+    ast_item,
+    token::{Assign, Colon, Delimiter, For, Function, Let, Return, Semicolon, Static, While},
+    Parse, Span, SyntaxResult, TokenIter, TokenTree,
 };
 
 ast_item!(
@@ -15,7 +14,7 @@ ast_item!(
         Assignment(Assignment),
         Return((Return, Expression, Semicolon)),
         While(WhileLoop),
-        For(Box<ForLoop>)
+        For(Box<ForLoop>),
     }
 );
 

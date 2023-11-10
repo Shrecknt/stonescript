@@ -1,14 +1,29 @@
 use crate::{
     ast::{Block, Declaration, Expression, Statement},
     ast_item,
-    token::{For, Parenthesis, Semicolon}, Spanned, Span,
+    token::{For, Parenthesis, Semicolon},
+    Span, Spanned,
 };
+
+ast_item!(
+    pub struct ForLoopInner {
+        init: Declaration,
+        condition: (Expression, Semicolon),
+        update: Statement,
+    }
+);
+
+impl Spanned for ForLoopInner {
+    fn span(&self) -> Span {
+        Span::from_start_end(self.init.span(), self.update.span())
+    }
+}
 
 ast_item!(
     pub struct ForLoop {
         for_token: For,
-        inner: (Parenthesis, (Declaration, (Expression, Semicolon), Statement)),
-        block: Block
+        inner: Parenthesis<ForLoopInner>,
+        block: Block,
     }
 );
 

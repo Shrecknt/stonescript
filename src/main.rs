@@ -4,7 +4,10 @@ use std::{
     path::PathBuf,
 };
 use stonescript::{
-    ast::{Statement, ToTokens}, config::ProjectConfig, token::parse_from_reader, TokenIter, VERSION,
+    ast::{Statement, ToTokens},
+    config::ProjectConfig,
+    token::parse_from_reader,
+    TokenIter, VERSION,
 };
 
 #[derive(Parser, Debug)]

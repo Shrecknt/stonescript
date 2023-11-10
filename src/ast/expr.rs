@@ -1,17 +1,18 @@
-use super::{bracketed, parenthesized, Punctuated, ToTokens};
+use super::{Punctuated, ToTokens};
 use crate::{
+    ast_item,
     token::{
         And, Bracket, Comma, Delimiter, Dot, Equals, GreaterThan, GreaterThanEquals, Ident,
         LessThan, LessThanEquals, Literal, Minus, Not, NotEquals, Or, Parenthesis, Percent, Plus,
         PunctToken, Slash, Star, ToTokenTree,
     },
-    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree, ast_item,
+    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree,
 };
 
 ast_item!(
     pub enum UnaryOp {
         Not(Not),
-        Negate(Minus)
+        Negate(Minus),
     }
 );
 
@@ -61,9 +62,9 @@ pub enum Expression {
     Literal(Literal),
     Variable(Ident),
     Property(Box<Expression>, Dot, Ident),
-    Call(Box<Expression>, Parenthesis, Punctuated<Expression, Comma>),
-    Parenthesized(Parenthesis, Box<Expression>),
-    Index(Box<Expression>, Bracket, Box<Expression>),
+    Call(Box<Expression>, Parenthesis<Punctuated<Expression, Comma>>),
+    Parenthesized(Box<Parenthesis<Expression>>),
+    Index(Box<Expression>, Box<Bracket<Expression>>),
     UnaryOp(UnaryOp, Box<Expression>),
     BinaryOp(Box<Expression>, BinaryOp, Box<Expression>),
 }
@@ -73,14 +74,14 @@ fn continue_expr(token_iter: &mut TokenIter, left: Expression) -> SyntaxResult<E
         match next_token {
             TokenTree::Group(group) => match group.delimiter() {
                 Delimiter::Parenthesis => {
-                    let (paren, inner) = parenthesized(token_iter.parse()?)?;
-                    continue_expr(token_iter, Expression::Call(Box::new(left), paren, inner))
+                    let args = token_iter.parse()?;
+                    continue_expr(token_iter, Expression::Call(Box::new(left), args))
                 }
                 Delimiter::Bracket => {
-                    let (bracket, inner) = bracketed(token_iter.parse()?)?;
+                    let index = token_iter.parse()?;
                     continue_expr(
                         token_iter,
-                        Expression::Index(Box::new(left), bracket, Box::new(inner)),
+                        Expression::Index(Box::new(left), Box::new(index)),
                     )
                 }
                 _ => Ok(left),
@@ -111,8 +112,8 @@ impl Parse for Expression {
             TokenTree::Ident(ident) => Self::Variable(ident),
             TokenTree::Group(group) => {
                 if group.delimiter() == Delimiter::Parenthesis {
-                    let (paren, inner) = parenthesized(group)?;
-                    Self::Parenthesized(paren, Box::new(inner))
+                    let inner = group.try_into()?;
+                    Self::Parenthesized(Box::new(inner))
                 } else {
                     return group.unexpected();
                 }
@@ -140,10 +141,10 @@ impl Spanned for Expression {
         match self {
             Self::Literal(literal) => literal.span(),
             Self::Variable(variable) => variable.span(),
-            Self::Parenthesized(paren, _expr) => paren.span(),
+            Self::Parenthesized(inner) => inner.span(),
             Self::Property(left, _dot, name) => Span::from_start_end(left.span(), name.span()),
-            Self::Call(left, paren, _args) => Span::from_start_end(left.span(), paren.span()),
-            Self::Index(left, bracket, _inner) => Span::from_start_end(left.span(), bracket.span()),
+            Self::Call(left, args) => Span::from_start_end(left.span(), args.span()),
+            Self::Index(left, index) => Span::from_start_end(left.span(), index.span()),
             Self::BinaryOp(left, _op, right) => Span::from_start_end(left.span(), right.span()),
             Self::UnaryOp(op, expr) => match op {
                 UnaryOp::Negate(minus) => Span::from_start_end(minus.span(), expr.span()),
@@ -158,19 +159,19 @@ impl ToTokens for Expression {
         match self {
             Self::Literal(literal) => literal.write_into_stream(stream),
             Self::Variable(variable) => variable.write_into_stream(stream),
-            Self::Parenthesized(paren, expr) => paren.into_group(*expr).write_into_stream(stream),
+            Self::Parenthesized(inner) => inner.write_into_stream(stream),
             Self::Property(left, dot, name) => {
                 left.write_into_stream(stream);
                 dot.write_into_stream(stream);
                 name.write_into_stream(stream);
             }
-            Self::Call(left, paren, args) => {
+            Self::Call(left, args) => {
                 left.write_into_stream(stream);
-                paren.into_group(args).write_into_stream(stream);
+                args.write_into_stream(stream);
             }
-            Self::Index(left, bracket, inner) => {
+            Self::Index(left, index) => {
                 left.write_into_stream(stream);
-                bracket.into_group(*inner).write_into_stream(stream);
+                index.write_into_stream(stream);
             }
             Self::BinaryOp(left, op, right) => {
                 left.write_into_stream(stream);

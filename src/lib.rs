@@ -87,7 +87,7 @@ mod tests {
             staticness,
             function_token: _,
             ident,
-            args: (_, args),
+            args,
             colon: _,
             return_type,
             block,
@@ -95,12 +95,12 @@ mod tests {
         {
             assert!(staticness.is_some());
             assert_eq!(ident.inner(), "test");
-            assert!(args.is_empty());
+            assert!(args.contents().is_empty());
             if let Type::Primitive(Primitive::Void { span: _ }) = return_type {
             } else {
                 panic!("expected type `void` got `{:?}`", return_type);
             }
-            assert!(block.contents.is_empty());
+            assert!(block.contents().is_empty());
 
             return Ok(());
         }

@@ -1,25 +1,17 @@
-use super::{parenthesized, Block, Punctuated, ToTokens, Type};
+use super::{Block, Punctuated, Type};
 use crate::{
+    ast_item,
     token::{Colon, Comma, Function, Ident, Parenthesis, Static},
-    Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
+    Span, Spanned,
 };
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct FunctionArg {
-    pub name: Ident,
-    pub colon: Colon,
-    pub ty: Type,
-}
-
-impl Parse for FunctionArg {
-    fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
-        let name = token_iter.parse()?;
-        let colon = token_iter.parse()?;
-        let ty = token_iter.parse()?;
-
-        Ok(Self { name, colon, ty })
+ast_item!(
+    pub struct FunctionArg {
+        name: Ident,
+        colon: Colon,
+        ty: Type,
     }
-}
+);
 
 impl Spanned for FunctionArg {
     fn span(&self) -> Span {
@@ -27,46 +19,17 @@ impl Spanned for FunctionArg {
     }
 }
 
-impl ToTokens for FunctionArg {
-    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
-        self.name.write_into_stream(stream);
-        self.colon.write_into_stream(stream);
-        self.ty.write_into_stream(stream);
+ast_item!(
+    pub struct FunctionDecl {
+        staticness: Option<Static>,
+        function_token: Function,
+        ident: Ident,
+        args: Parenthesis<Punctuated<FunctionArg, Comma>>,
+        colon: Colon,
+        return_type: Type,
+        block: Block,
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct FunctionDecl {
-    pub staticness: Option<Static>,
-    pub function_token: Function,
-    pub ident: Ident,
-    pub args: (Parenthesis, Punctuated<FunctionArg, Comma>),
-    pub colon: Colon,
-    pub return_type: Type,
-    pub block: Block,
-}
-
-impl Parse for FunctionDecl {
-    fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
-        let staticness = token_iter.parse()?;
-        let function_token = token_iter.parse()?;
-        let ident = token_iter.parse()?;
-        let (paren, args) = parenthesized(token_iter.parse()?)?;
-        let colon = token_iter.parse()?;
-        let return_type = token_iter.parse()?;
-        let block = token_iter.parse()?;
-
-        Ok(Self {
-            staticness,
-            function_token,
-            ident,
-            args: (paren, args),
-            colon,
-            return_type,
-            block,
-        })
-    }
-}
+);
 
 impl Spanned for FunctionDecl {
     fn span(&self) -> Span {
@@ -75,20 +38,5 @@ impl Spanned for FunctionDecl {
         } else {
             Span::from_start_end(self.function_token.span(), self.block.span())
         }
-    }
-}
-
-impl ToTokens for FunctionDecl {
-    fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
-        if let Some(static_token) = self.staticness {
-            static_token.write_into_stream(stream);
-        }
-
-        self.function_token.write_into_stream(stream);
-        self.ident.write_into_stream(stream);
-        self.args.0.into_group(self.args.1).write_into_stream(stream);
-        self.colon.write_into_stream(stream);
-        self.return_type.write_into_stream(stream);
-        self.block.write_into_stream(stream);
     }
 }

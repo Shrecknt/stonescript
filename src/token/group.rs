@@ -34,19 +34,19 @@ macro_rules! define_delimiter {
         }
 
         pub mod ast {
-            use crate::{Span, Spanned, token::{Group, Delimiter}, ast::ToTokens};
+            use crate::{
+                Span, Spanned, TokenIter, SyntaxResult, SyntaxError, Parse, TokenTree,
+                token::{Group, Delimiter, ToTokenTree}, ast::ToTokens
+            };
 
             $(
-                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-                pub struct $variant {
+                #[derive(Debug, Clone, PartialEq)]
+                pub struct $variant<T> {
                     span: Span,
+                    contents: T,
                 }
 
-                impl $variant {
-                    pub(crate) fn new(span: Span) -> Self {
-                        Self { span }
-                    }
-
+                impl<T> $variant<T> {
                     pub fn open(&self) -> char {
                         $open
                     }
@@ -55,18 +55,50 @@ macro_rules! define_delimiter {
                         $close
                     }
 
-                    pub fn into_group<T: ToTokens>(self, contents: T) -> Group {
-                        Group {
-                            span: self.span,
+                    pub fn contents(&self) -> &T {
+                        &self.contents
+                    }
+                }
+
+                impl<T: Parse> TryFrom<Group> for $variant<T> {
+                    type Error = SyntaxError;
+
+                    fn try_from(value: Group) -> SyntaxResult<Self> {
+                        if let Group {
+                            span,
+                            tokens,
                             delimiter: Delimiter::$variant,
-                            tokens: contents.into_tokens(),
+                        } = value {
+                            Ok(Self {
+                                span,
+                                contents: TokenIter::from(&tokens).parse()?,
+                            })
+                        } else {
+                            Err(SyntaxError::UnexpectedToken(value.to_token_tree(), stringify!($variant)))
                         }
                     }
                 }
 
-                impl Spanned for $variant {
+                impl<T: Parse> Parse for $variant<T> {
+                    fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
+                        let group: Group = token_iter.parse()?;
+                        group.try_into()
+                    }
+                }
+
+                impl<T> Spanned for $variant<T> {
                     fn span(&self) -> Span {
                         self.span
+                    }
+                }
+
+                impl<T: ToTokens> ToTokenTree for $variant<T> {
+                    fn to_token_tree(self) -> TokenTree {
+                        Group {
+                            span: self.span,
+                            delimiter: Delimiter::$variant,
+                            tokens: self.contents.into_tokens(),
+                        }.to_token_tree()
                     }
                 }
             )+

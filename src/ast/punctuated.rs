@@ -5,12 +5,12 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Punctuated<T: Parse, P: Token> {
+pub struct Punctuated<T, P> {
     inner: Vec<(T, P)>,
     last: Option<Box<T>>,
 }
 
-impl<T: Parse, P: Token> Punctuated<T, P> {
+impl<T, P> Punctuated<T, P> {
     pub fn is_empty(&self) -> bool {
         self.inner.len() == 0 && self.last.is_none()
     }
@@ -40,7 +40,7 @@ impl<T: Parse, P: Token> Parse for Punctuated<T, P> {
     }
 }
 
-impl<T: Parse + Spanned, P: Token + Spanned> Spanned for Punctuated<T, P> {
+impl<T: Spanned, P: Spanned> Spanned for Punctuated<T, P> {
     fn span(&self) -> Span {
         if let Some(last) = &self.last {
             if let Some(first) = self.inner.first() {
@@ -60,7 +60,7 @@ impl<T: Parse + Spanned, P: Token + Spanned> Spanned for Punctuated<T, P> {
     }
 }
 
-impl<T: Parse + ToTokens, P: Token + Spanned + ToTokenTree> ToTokens for Punctuated<T, P> {
+impl<T: ToTokens, P: ToTokenTree> ToTokens for Punctuated<T, P> {
     fn write_into_stream(self, stream: &mut Vec<TokenTree>) {
         for (token, punct) in self.inner {
             token.write_into_stream(stream);

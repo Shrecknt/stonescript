@@ -1,24 +1,23 @@
 pub use self::{
     assign::Assignment,
-    block::Block,
     decl::Declaration,
     expr::Expression,
     func::{FunctionArg, FunctionDecl},
     punctuated::Punctuated,
-    stmt::Statement,
-    r#type::{Type, Primitive},
-    r#while::WhileLoop,
     r#for::ForLoop,
+    r#type::{Primitive, Type},
+    r#while::WhileLoop,
+    stmt::Statement,
 };
 use crate::{
-    token::{Brace, Bracket, Delimiter, Group, Parenthesis, ToTokenTree},
-    Parse, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree, TokenStream,
+    token::{Brace, ToTokenTree},
+    Spanned, TokenStream, TokenTree,
 };
 
 mod assign;
-mod block;
 mod decl;
 mod expr;
+mod r#for;
 mod func;
 mod parse;
 pub(super) mod prelude;
@@ -26,33 +25,15 @@ mod punctuated;
 mod stmt;
 mod r#type;
 mod r#while;
-mod r#for;
 
-macro_rules! define_group_parsers {
-    ($($method_name:ident: $delimiter:ident),+) => {
-        $(
-            pub fn $method_name<T: Parse>(group: Group) -> SyntaxResult<($delimiter, T)> {
-                if group.delimiter() == Delimiter::$delimiter {
-                    let span = group.span();
-                    let inner = group.into_tokens();
-                    Ok(($delimiter::new(span), TokenIter::from(&inner).parse()?))
-                } else {
-                    Err(SyntaxError::UnexpectedToken(TokenTree::Group(group), stringify!($delimiter)))
-                }
-            }
-        )+
-    };
-}
-
-define_group_parsers!(
-    braced: Brace,
-    bracketed: Bracket,
-    parenthesized: Parenthesis
-);
+pub type Block = Brace<Vec<Statement>>;
 
 pub trait ToTokens: Spanned {
     fn write_into_stream(self, stream: &mut Vec<TokenTree>);
-    fn into_tokens(self) -> TokenStream where Self: Sized {
+    fn into_tokens(self) -> TokenStream
+    where
+        Self: Sized,
+    {
         let mut tokens = vec![];
         self.write_into_stream(&mut tokens);
         tokens.into()

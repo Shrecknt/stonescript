@@ -1,7 +1,8 @@
 use super::Expression;
 use crate::{
+    ast_item,
     token::{Assign, Ident, Semicolon},
-    Spanned, Span, ast_item, 
+    Span, Spanned,
 };
 
 ast_item!(
@@ -9,7 +10,7 @@ ast_item!(
         variable_name: Ident,
         assign: Assign,
         value: Expression,
-        semicolon: Semicolon
+        semicolon: Semicolon,
     }
 );
 

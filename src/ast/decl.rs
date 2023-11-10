@@ -1,13 +1,14 @@
 use super::{Expression, Type};
 use crate::{
-    token::{Assign, Colon, Ident, Semicolon, Static, Let},
-    Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree, SyntaxError, ast_item,
+    ast_item,
+    token::{Assign, Colon, Ident, Let, Semicolon, Static},
+    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree,
 };
 
 ast_item!(
     pub enum DeclStart {
         Static(Static),
-        Let(Let)
+        Let(Let),
     }
 );
 
@@ -20,10 +21,16 @@ impl Parse for DeclStart {
                 } else if Let::is_ident(ident) {
                     Ok(Self::Let(token_iter.parse()?))
                 } else {
-                    Err(SyntaxError::UnexpectedToken(token_iter.expect_consume()?, "static or let"))
+                    Err(SyntaxError::UnexpectedToken(
+                        token_iter.expect_consume()?,
+                        "static or let",
+                    ))
                 }
             }
-            _ => Err(SyntaxError::UnexpectedToken(token_iter.expect_consume()?, "static or let"))
+            _ => Err(SyntaxError::UnexpectedToken(
+                token_iter.expect_consume()?,
+                "static or let",
+            )),
         }
     }
 }
@@ -35,7 +42,7 @@ ast_item!(
         colon: Colon,
         ty: Type,
         value: Option<(Assign, Expression)>,
-        semicolon: Semicolon
+        semicolon: Semicolon,
     }
 );
 
