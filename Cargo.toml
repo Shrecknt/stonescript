@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.4.6", features = ["derive"] }
 eyre = "0.6.8"
+rand = { version = "0.8.5", features = ["small_rng"] }
 semver = "1.0.20"
 serde = { version = "1.0.189", features = ["derive"] }
 thiserror = "1.0.50"

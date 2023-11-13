@@ -6,6 +6,7 @@ use std::{
 use stonescript::{
     ast::{Statement, ToTokens},
     config::ProjectConfig,
+    rebuild::{rebuild_from_ast, rebuilt_statement::RebuiltStatement},
     token::parse_from_reader,
     TokenIter, VERSION,
 };
@@ -50,7 +51,10 @@ fn main() -> eyre::Result<()> {
     let tokenized = parse_from_reader(entrypoint_file)?;
 
     let statements: Vec<Statement> = TokenIter::from(&tokenized).parse()?;
-    println!("\nAST:\n\n{:#?}", statements.into_tokens());
+    println!("\nAST:\n\n{:#?}", statements.clone().into_tokens());
+
+    let rebuilt_statements: Vec<RebuiltStatement> = rebuild_from_ast(statements);
+    println!("\nRebuilt AST:\n\n{:#?}", rebuilt_statements);
 
     Ok(())
 }

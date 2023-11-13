@@ -43,7 +43,7 @@ macro_rules! define_delimiter {
                 #[derive(Debug, Clone, PartialEq)]
                 pub struct $variant<T> {
                     span: Span,
-                    contents: T,
+                    pub contents: T, // GIVE ME PUBLIC ACCESS OR GIVE ME DEATH
                 }
 
                 impl<T> $variant<T> {

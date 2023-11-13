@@ -7,6 +7,7 @@ mod private {
 
 pub mod ast;
 pub mod config;
+pub mod rebuild;
 pub mod token;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -1,4 +1,6 @@
-use super::{Assignment, Block, Declaration, Expression, ForLoop, FunctionDecl, WhileLoop};
+use super::{
+    Assignment, Block, Declaration, Expression, ForLoop, FunctionDecl, IfBlock, WhileLoop,
+};
 use crate::{
     ast_item,
     token::{Assign, Colon, Delimiter, For, Function, Let, Return, Semicolon, Static, While},
@@ -14,6 +16,7 @@ ast_item!(
         Assignment(Assignment),
         Return((Return, Expression, Semicolon)),
         While(WhileLoop),
+        If(IfBlock),
         For(Box<ForLoop>),
     }
 );

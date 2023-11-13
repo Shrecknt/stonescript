@@ -8,7 +8,7 @@ use thiserror::Error;
 pub struct InvalidXID;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub struct XID(String);
+pub struct XID(pub String);
 
 impl XID {
     fn inner(&self) -> &str {
@@ -46,7 +46,7 @@ impl fmt::Display for XID {
 #[derive(Clone, PartialEq)]
 pub struct Ident {
     span: Span,
-    value: XID,
+    pub value: XID, // GIVE ME PUBLIC ACCESS OR GIVE ME DEATH
 }
 
 impl Ident {

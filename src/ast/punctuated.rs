@@ -6,7 +6,7 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Punctuated<T, P> {
-    inner: Vec<(T, P)>,
+    pub inner: Vec<(T, P)>, // GIVE ME PUBLIC ACCESS OR GIVE ME DEATH
     last: Option<Box<T>>,
 }
 

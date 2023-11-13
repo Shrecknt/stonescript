@@ -270,6 +270,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "eyre",
+ "rand",
  "semver",
  "serde",
  "thiserror",

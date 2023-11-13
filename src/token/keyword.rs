@@ -52,5 +52,6 @@ define_keyword!(
     While => "while",
     Let => "let",
     Function => "function",
-    Return => "return"
+    Return => "return",
+    If => "if"
 );

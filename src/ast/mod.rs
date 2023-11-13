@@ -5,6 +5,7 @@ pub use self::{
     func::{FunctionArg, FunctionDecl},
     punctuated::Punctuated,
     r#for::ForLoop,
+    r#if::IfBlock,
     r#type::{Primitive, Type},
     r#while::WhileLoop,
     stmt::Statement,
@@ -19,6 +20,7 @@ mod decl;
 mod expr;
 mod r#for;
 mod func;
+mod r#if;
 mod parse;
 pub(super) mod prelude;
 mod punctuated;
