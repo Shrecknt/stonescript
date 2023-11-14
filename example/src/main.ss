@@ -14,7 +14,13 @@ static function main(): int {
 
     command("say loading!");
 
-    if (1) {}
+    if (1) {
+        command("say 1!");
+    } else if (2) {
+        command("say 2!");
+    } else {
+        command("say not 1 or 2 :<");
+    }
 
     return 1;
 }

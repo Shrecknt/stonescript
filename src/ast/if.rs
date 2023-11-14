@@ -2,7 +2,7 @@ use crate::{
     ast::{Block, Expression},
     ast_item,
     token::{Else, If, Parenthesis},
-    Parse, Span, Spanned, SyntaxError, TokenTree,
+    Parse, Span, Spanned, TokenTree,
 };
 
 ast_item!(
@@ -24,7 +24,6 @@ ast_item!(
 ast_item!(
     pub struct ElseBlock {
         else_token: Else,
-        condition: Parenthesis<Expression>,
         block: Block,
     }
 );
@@ -64,11 +63,11 @@ impl Parse for Option<Box<ElseBlocks>> {
                 if Else::is_ident(ident) {
                     let else_token: Else = token_iter.parse()?;
                     match token_iter.expect_peek()? {
-                        TokenTree::Punct(_) => Ok(Some(
+                        TokenTree::Ident(_) => Ok(Some(
                             ElseBlocks::ElseIf(ElseIfBlock {
                                 else_token,
                                 if_token: token_iter.parse()?,
-                                condition: token_iter.parse()?,
+                                condition: token_iter.parse().unwrap(),
                                 block: token_iter.parse()?,
                                 r#else: token_iter.parse()?,
                             })
@@ -77,23 +76,16 @@ impl Parse for Option<Box<ElseBlocks>> {
                         _ => Ok(Some(
                             ElseBlocks::Else(ElseBlock {
                                 else_token,
-                                condition: token_iter.parse()?,
                                 block: token_iter.parse()?,
                             })
                             .into(),
                         )),
                     }
                 } else {
-                    Err(SyntaxError::UnexpectedToken(
-                        token_iter.expect_consume()?,
-                        "else",
-                    ))
+                    Ok(None)
                 }
             }
-            _ => Err(SyntaxError::UnexpectedToken(
-                token_iter.expect_consume()?,
-                "else",
-            )),
+            _ => Ok(None),
         }
     }
 }

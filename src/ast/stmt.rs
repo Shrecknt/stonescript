@@ -3,7 +3,7 @@ use super::{
 };
 use crate::{
     ast_item,
-    token::{Assign, Colon, Delimiter, For, Function, Let, Return, Semicolon, Static, While},
+    token::{Assign, Colon, Delimiter, For, Function, If, Let, Return, Semicolon, Static, While},
     Parse, Span, SyntaxResult, TokenIter, TokenTree,
 };
 
@@ -36,6 +36,10 @@ impl Parse for Statement {
 
                 if While::is_ident(ident) {
                     return Ok(Self::While(token_iter.parse()?));
+                }
+
+                if If::is_ident(ident) {
+                    return Ok(Self::If(token_iter.parse()?));
                 }
 
                 if For::is_ident(ident) {
