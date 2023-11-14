@@ -1,4 +1,7 @@
-use crate::ast::{Assignment, Declaration};
+use crate::{
+    ast::{Assignment, Declaration, Expression},
+    token::{Return, Semicolon},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RebuiltStatement {
@@ -6,4 +9,5 @@ pub enum RebuiltStatement {
     Assignment(Assignment),
     Function((String, Vec<RebuiltStatement>)),
     Call(String),
+    Return((Return, Expression, Semicolon)),
 }

@@ -53,5 +53,6 @@ define_keyword!(
     Let => "let",
     Function => "function",
     Return => "return",
-    If => "if"
+    If => "if",
+    Else => "else"
 );

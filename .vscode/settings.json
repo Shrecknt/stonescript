@@ -1,19 +1,8 @@
 {
     "cSpell.words": [
-        "alloc",
-        "datapack",
-        "datapacks",
-        "dealloc",
-        "mcfunction",
-        "stdlib",
-        "stonescript",
-        "thiserror",
-        "tokenise",
-        "varb",
-        "varp"
+        "denest",
+        "Deque"
     ],
-    "rust-analyzer.linkedProjects": [
-        "./Cargo.toml"
-    ],
+    "rust-analyzer.linkedProjects": ["./Cargo.toml"],
     "rust-analyzer.showUnlinkedFileNotification": false
 }
