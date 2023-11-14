@@ -54,5 +54,6 @@ define_keyword!(
     Function => "function",
     Return => "return",
     If => "if",
-    Else => "else"
+    Else => "else",
+    Unsafe => "unsafe"
 );

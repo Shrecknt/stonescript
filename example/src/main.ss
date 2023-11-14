@@ -14,6 +14,10 @@ static function main(): int {
 
     command("say loading!");
 
+    unsafe {
+        eval("say this is being run from an unchecked context o_o");
+    }
+
     if (1) {
         command("say 1!");
     } else if (2) {

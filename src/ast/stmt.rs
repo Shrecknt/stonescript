@@ -1,9 +1,12 @@
 use super::{
-    Assignment, Block, Declaration, Expression, ForLoop, FunctionDecl, IfBlock, WhileLoop,
+    Assignment, Block, Declaration, Expression, ForLoop, FunctionDecl, IfBlock, UnsafeBlock,
+    WhileLoop,
 };
 use crate::{
     ast_item,
-    token::{Assign, Colon, Delimiter, For, Function, If, Let, Return, Semicolon, Static, While},
+    token::{
+        Assign, Colon, Delimiter, For, Function, If, Let, Return, Semicolon, Static, Unsafe, While,
+    },
     Parse, Span, SyntaxResult, TokenIter, TokenTree,
 };
 
@@ -18,6 +21,7 @@ ast_item!(
         While(WhileLoop),
         If(IfBlock),
         For(Box<ForLoop>),
+        Unsafe(UnsafeBlock),
     }
 );
 
@@ -32,6 +36,10 @@ impl Parse for Statement {
             TokenTree::Ident(ident) => {
                 if Return::is_ident(ident) {
                     return Ok(Self::Return(token_iter.parse()?));
+                }
+
+                if Unsafe::is_ident(ident) {
+                    return Ok(Self::Unsafe(token_iter.parse()?));
                 }
 
                 if While::is_ident(ident) {

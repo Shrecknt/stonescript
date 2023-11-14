@@ -27,5 +27,6 @@ pub fn denest_statement(
         Statement::While(r#while) => todo!(),
         Statement::For(r#for) => todo!(),
         Statement::If(r#if) => todo!(),
+        Statement::Unsafe(r#unsafe) => todo!(),
     }
 }

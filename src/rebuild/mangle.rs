@@ -4,7 +4,7 @@ use rand::{distributions::Alphanumeric, Rng};
 
 use crate::{
     ast::{Expression, Statement},
-    token::{Comma, Punct},
+    token::Comma,
 };
 
 pub fn random_name(size: usize) -> String {
@@ -75,6 +75,7 @@ fn mangle_block_variables(
                 r#for.block.contents =
                     mangle_block_variables(r#for.block.contents.clone(), function_scope);
             }
+            Statement::Unsafe(r#unsafe) => todo!(),
         }
     }
     ast

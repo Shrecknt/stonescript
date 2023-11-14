@@ -7,6 +7,7 @@ pub use self::{
     r#for::ForLoop,
     r#if::IfBlock,
     r#type::{Primitive, Type},
+    r#unsafe::UnsafeBlock,
     r#while::WhileLoop,
     stmt::Statement,
 };
@@ -26,6 +27,7 @@ pub(super) mod prelude;
 mod punctuated;
 mod stmt;
 mod r#type;
+mod r#unsafe;
 mod r#while;
 
 pub type Block = Brace<Vec<Statement>>;
