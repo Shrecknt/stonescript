@@ -1,6 +1,5 @@
 use super::{
-    Assignment, Block, Declaration, Expression, ForLoop, FunctionDecl, IfBlock, UnsafeBlock,
-    WhileLoop,
+    Assignment, Block, Declaration, Expression, ForLoop, FunctionDecl, IfBlock, WhileLoop,
 };
 use crate::{
     ast_item,
@@ -21,7 +20,7 @@ ast_item!(
         While(WhileLoop),
         If(IfBlock),
         For(Box<ForLoop>),
-        Unsafe(UnsafeBlock),
+        Unsafe((Unsafe, Block)),
     }
 );
 

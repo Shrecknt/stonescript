@@ -2,7 +2,7 @@ use crate::{
     ast::{Block, Expression},
     ast_item,
     token::{Else, If, Parenthesis},
-    Parse, Span, Spanned, TokenTree,
+    Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
 };
 
 ast_item!(
@@ -10,31 +10,14 @@ ast_item!(
         if_token: If,
         condition: Parenthesis<Expression>,
         block: Block,
-        r#else: Option<Box<ElseBlocks>>,
+        else_block: Option<(Else, ElseBlock)>,
     }
 );
 
 ast_item!(
-    pub enum ElseBlocks {
-        ElseIf(ElseIfBlock),
-        Else(ElseBlock),
-    }
-);
-
-ast_item!(
-    pub struct ElseBlock {
-        else_token: Else,
-        block: Block,
-    }
-);
-
-ast_item!(
-    pub struct ElseIfBlock {
-        else_token: Else,
-        if_token: If,
-        condition: Parenthesis<Expression>,
-        block: Block,
-        r#else: Option<Box<ElseBlocks>>,
+    pub enum ElseBlock {
+        ElseIf(Box<IfBlock>),
+        Else(Block),
     }
 );
 
@@ -44,48 +27,14 @@ impl Spanned for IfBlock {
     }
 }
 
-impl Spanned for ElseBlock {
-    fn span(&self) -> Span {
-        Span::from_start_end(self.else_token.span(), self.block.span())
-    }
-}
-
-impl Spanned for ElseIfBlock {
-    fn span(&self) -> Span {
-        Span::from_start_end(self.else_token.span(), self.block.span())
-    }
-}
-
-impl Parse for Option<Box<ElseBlocks>> {
-    fn parse(token_iter: &mut crate::TokenIter) -> crate::SyntaxResult<Self> {
-        match token_iter.expect_peek()? {
-            TokenTree::Ident(ident) => {
-                if Else::is_ident(ident) {
-                    let else_token: Else = token_iter.parse()?;
-                    match token_iter.expect_peek()? {
-                        TokenTree::Ident(_) => Ok(Some(
-                            ElseBlocks::ElseIf(ElseIfBlock {
-                                else_token,
-                                if_token: token_iter.parse()?,
-                                condition: token_iter.parse().unwrap(),
-                                block: token_iter.parse()?,
-                                r#else: token_iter.parse()?,
-                            })
-                            .into(),
-                        )),
-                        _ => Ok(Some(
-                            ElseBlocks::Else(ElseBlock {
-                                else_token,
-                                block: token_iter.parse()?,
-                            })
-                            .into(),
-                        )),
-                    }
-                } else {
-                    Ok(None)
-                }
-            }
-            _ => Ok(None),
+impl Parse for ElseBlock {
+    fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
+        if let TokenTree::Group(_) = token_iter.expect_peek()? {
+            let block = token_iter.parse()?;
+            Ok(Self::Else(block))
+        } else {
+            let if_stmt = token_iter.parse()?;
+            Ok(Self::ElseIf(Box::new(if_stmt)))
         }
     }
 }
