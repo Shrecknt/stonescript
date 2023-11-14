@@ -14,6 +14,8 @@ static function main(): int {
 
     command("say loading!");
 
+    if (1) {}
+
     return 1;
 }
 
