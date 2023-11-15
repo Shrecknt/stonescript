@@ -18,7 +18,7 @@ ast_item!(
         Assignment(Assignment),
         Return((Return, Expression, Semicolon)),
         While(WhileLoop),
-        If(IfBlock),
+        If(Box<IfBlock>),
         For(Box<ForLoop>),
         Unsafe((Unsafe, Block)),
     }
@@ -46,7 +46,7 @@ impl Parse for Statement {
                 }
 
                 if If::is_ident(ident) {
-                    return Ok(Self::If(token_iter.parse()?));
+                    return Ok(Self::If(Box::new(token_iter.parse()?)));
                 }
 
                 if For::is_ident(ident) {

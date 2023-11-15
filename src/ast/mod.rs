@@ -5,7 +5,7 @@ pub use self::{
     func::{FunctionArg, FunctionDecl},
     punctuated::Punctuated,
     r#for::ForLoop,
-    r#if::IfBlock,
+    r#if::{ElseBlock, IfBlock},
     r#type::{Primitive, Type},
     r#while::WhileLoop,
     stmt::Statement,

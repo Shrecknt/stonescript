@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use rand::{distributions::Alphanumeric, Rng};
 
 use crate::{
-    ast::{Expression, Statement},
+    ast::{Expression, IfBlock, Statement},
+    config::ProjectConfig,
     token::Comma,
 };
 
@@ -15,7 +16,7 @@ pub fn random_name(size: usize) -> String {
         .collect()
 }
 
-pub fn mangle_variables(ast: Vec<Statement>) -> Vec<Statement> {
+pub fn mangle_variables(ast: Vec<Statement>, project_config: &ProjectConfig) -> Vec<Statement> {
     let mut scope = HashMap::<String, String>::new();
     for item in ast.clone() {
         if let Statement::Function(function) = item {
@@ -23,24 +24,29 @@ pub fn mangle_variables(ast: Vec<Statement>) -> Vec<Statement> {
         }
     }
     println!("Scope: {:?}", scope);
-    let ast = mangle_block_variables(ast, scope);
+    let ast = mangle_block_variables(ast, scope, project_config);
     ast
 }
 
 fn mangle_block_variables(
     mut ast: Vec<Statement>,
     mut scope: HashMap<String, String>,
+    project_config: &ProjectConfig,
 ) -> Vec<Statement> {
     for statement in &mut ast {
         match statement {
             Statement::Block(block) => {
-                block.contents = mangle_block_variables(block.contents.clone(), scope.clone());
+                block.contents =
+                    mangle_block_variables(block.contents.clone(), scope.clone(), project_config);
             }
             Statement::Function(function) => {
                 let function_scope = scope.clone();
                 // TODO: Insert function arguments into function_scope
-                function.block.contents =
-                    mangle_block_variables(function.block.contents.clone(), function_scope);
+                function.block.contents = mangle_block_variables(
+                    function.block.contents.clone(),
+                    function_scope,
+                    project_config,
+                );
             }
             Statement::Declaration(declaration) => {
                 let mangled_name = random_name(16);
@@ -62,23 +68,39 @@ fn mangle_block_variables(
                 r#return.1 = mangle_expression_variables(r#return.1.clone(), scope.clone());
             }
             Statement::While(r#while) => {
-                r#while.block.contents =
-                    mangle_block_variables(r#while.block.contents.clone(), scope.clone());
+                r#while.block.contents = mangle_block_variables(
+                    r#while.block.contents.clone(),
+                    scope.clone(),
+                    project_config,
+                );
             }
             Statement::If(r#if) => {
-                r#if.block.contents =
-                    mangle_block_variables(r#if.block.contents.clone(), scope.clone());
+                mangle_if_variables(r#if, scope.clone(), project_config);
             }
             Statement::For(r#for) => {
                 let function_scope = scope.clone();
                 // TODO: Insert iterator variable into function_scope
-                r#for.block.contents =
-                    mangle_block_variables(r#for.block.contents.clone(), function_scope);
+                r#for.block.contents = mangle_block_variables(
+                    r#for.block.contents.clone(),
+                    function_scope,
+                    project_config,
+                );
             }
-            Statement::Unsafe(r#unsafe) => todo!(),
+            Statement::Unsafe((_unsafe, block)) => {
+                block.contents =
+                    mangle_block_variables(block.contents.clone(), scope.clone(), project_config);
+            }
         }
     }
     ast
+}
+
+fn mangle_if_variables(
+    r#if: &mut Box<IfBlock>,
+    scope: HashMap<String, String>,
+    project_config: &ProjectConfig,
+) {
+    todo!()
 }
 
 fn mangle_expression_variables(
