@@ -4,11 +4,10 @@ use std::{
     path::PathBuf,
 };
 use stonescript::{
-    ast::{Statement, ToTokens},
     config::ProjectConfig,
-    rebuild::{rebuild_from_ast, rebuilt_statement::RebuiltStatement},
+    hir::{Statement, ToTokens},
     token::parse_from_reader,
-    TokenIter, VERSION,
+    TokenIter, VERSION, mir::ToMir,
 };
 
 #[derive(Parser, Debug)]
@@ -53,8 +52,10 @@ fn main() -> eyre::Result<()> {
     let statements: Vec<Statement> = TokenIter::from(&tokenized).parse()?;
     println!("\nAST:\n\n{:#?}", statements.clone().into_tokens());
 
-    let rebuilt_statements: Vec<RebuiltStatement> = rebuild_from_ast(statements, &project_config);
-    println!("\nRebuilt AST:\n\n{:#?}", rebuilt_statements);
+    println!("MIR: {:?}", statements.into_mir());
+
+    // let rebuilt_statements: Vec<RebuiltStatement> = rebuild_from_ast(statements, &project_config);
+    // println!("\nRebuilt AST:\n\n{:#?}", rebuilt_statements);
 
     Ok(())
 }

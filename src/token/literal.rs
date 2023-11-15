@@ -37,6 +37,10 @@ impl Literal {
     pub fn inner(&self) -> &LiteralType {
         &self.value
     }
+
+    pub fn into_inner(self) -> LiteralType {
+        self.value
+    }
 }
 
 impl Spanned for Literal {

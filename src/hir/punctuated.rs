@@ -6,11 +6,21 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Punctuated<T, P> {
-    pub inner: Vec<(T, P)>, // GIVE ME PUBLIC ACCESS OR GIVE ME DEATH
+    inner: Vec<(T, P)>,
     last: Option<Box<T>>,
 }
 
 impl<T, P> Punctuated<T, P> {
+    pub fn into_tokens(self) -> Vec<T> {
+        let mut map: Vec<T> = self.inner.into_iter().map(|(token, _)| token).collect();
+
+        if let Some(last) = self.last {
+            map.push(*last);
+        }
+
+        map
+    }
+
     pub fn is_empty(&self) -> bool {
         self.inner.len() == 0 && self.last.is_none()
     }

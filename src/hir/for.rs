@@ -1,6 +1,7 @@
+use super::Assignment;
 use crate::{
-    ast::{Block, Declaration, Expression, Statement},
     ast_item,
+    hir::{Block, Declaration, Expression},
     token::{For, Parenthesis, Semicolon},
     Span, Spanned,
 };
@@ -9,7 +10,7 @@ ast_item!(
     pub struct ForLoopInner {
         init: Declaration,
         condition: (Expression, Semicolon),
-        update: Statement,
+        update: Assignment,
     }
 );
 

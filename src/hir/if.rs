@@ -1,6 +1,6 @@
 use crate::{
-    ast::{Block, Expression},
     ast_item,
+    hir::{Block, Expression},
     token::{Else, If, Parenthesis},
     Parse, Span, Spanned, SyntaxResult, TokenIter, TokenTree,
 };

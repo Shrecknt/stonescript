@@ -1,13 +1,13 @@
-pub use self::{ast::prelude::*, token::prelude::*};
+pub use self::{hir::prelude::*, token::prelude::*};
 pub(crate) use private::Sealed;
 
 mod private {
     pub trait Sealed {}
 }
 
-pub mod ast;
 pub mod config;
-pub mod rebuild;
+pub mod hir;
+pub mod mir;
 pub mod token;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -74,7 +74,7 @@ tuple_spanned_impl!(9, a b c d e f g h i j);
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{FunctionDecl, Primitive, Statement, Type},
+        hir::{FunctionDecl, Primitive, Statement, Type},
         parse_str, TokenIter,
     };
 

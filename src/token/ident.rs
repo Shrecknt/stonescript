@@ -46,12 +46,16 @@ impl fmt::Display for XID {
 #[derive(Clone, PartialEq)]
 pub struct Ident {
     span: Span,
-    pub value: XID, // GIVE ME PUBLIC ACCESS OR GIVE ME DEATH
+    value: XID,
 }
 
 impl Ident {
     pub fn inner(&self) -> &str {
         self.value.inner()
+    }
+
+    pub fn into_inner(self) -> XID {
+        self.value
     }
 
     pub(crate) fn new_unchecked(span: Span, value: &str) -> Ident {

@@ -38,7 +38,7 @@ macro_rules! define_punct {
             }
         }
 
-        pub mod ast {
+        pub(crate) mod hir {
             use crate::{Span, Spanned, TokenTree, Sealed, token::{Token, ToTokenTree}};
             use super::{Punct, PunctToken};
 

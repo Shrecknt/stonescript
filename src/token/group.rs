@@ -33,17 +33,17 @@ macro_rules! define_delimiter {
             }
         }
 
-        pub mod ast {
+        pub(crate) mod hir {
             use crate::{
                 Span, Spanned, TokenIter, SyntaxResult, SyntaxError, Parse, TokenTree,
-                token::{Group, Delimiter, ToTokenTree}, ast::ToTokens
+                token::{Group, Delimiter, ToTokenTree}, hir::ToTokens
             };
 
             $(
                 #[derive(Debug, Clone, PartialEq)]
                 pub struct $variant<T> {
                     span: Span,
-                    pub contents: T, // GIVE ME PUBLIC ACCESS OR GIVE ME DEATH
+                    contents: T,
                 }
 
                 impl<T> $variant<T> {
@@ -57,6 +57,10 @@ macro_rules! define_delimiter {
 
                     pub fn contents(&self) -> &T {
                         &self.contents
+                    }
+
+                    pub fn into_contents(self) -> T {
+                        self.contents
                     }
                 }
 

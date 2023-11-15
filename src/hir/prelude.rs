@@ -14,6 +14,17 @@ pub type SyntaxResult<T> = Result<T, SyntaxError>;
 
 #[macro_export]
 #[doc(hidden)]
+macro_rules! _parse_field {
+    ($token_iter:ident Box<$inner:ty>) => {
+        Box::new($token_iter.parse()?)
+    };
+    ($token_iter:ident $other:ty) => {
+        $token_iter.parse()?
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
 macro_rules! _totoken_field {
     ($stream:ident Option<$inner:ty> = $value:expr) => {
         if let Some(value) = $value {
@@ -38,7 +49,7 @@ macro_rules! ast_item {
         impl $crate::Parse for $ident {
             fn parse(token_iter: &mut $crate::TokenIter) -> $crate::SyntaxResult<Self> {
                 $(
-                    let $fident = token_iter.parse()?;
+                    let $fident = $crate::_parse_field!(token_iter $fty $(<$($gen),+>)?);
                 )+
 
                 Ok(Self {
@@ -49,7 +60,7 @@ macro_rules! ast_item {
             }
         }
 
-        impl $crate::ast::ToTokens for $ident {
+        impl $crate::hir::ToTokens for $ident {
             fn write_into_stream(self, stream: &mut Vec<$crate::TokenTree>) {
                 $(
                     $crate::_totoken_field!(stream $fty $(<$($gen),+>)? = self.$fident);
@@ -75,7 +86,7 @@ macro_rules! ast_item {
             }
         }
 
-        impl $crate::ast::ToTokens for $ident {
+        impl $crate::hir::ToTokens for $ident {
             fn write_into_stream(self, stream: &mut Vec<$crate::TokenTree>) {
                 match self {
                     $(

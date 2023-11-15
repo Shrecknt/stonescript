@@ -1,6 +1,6 @@
 pub use self::{
     assign::Assignment,
-    decl::Declaration,
+    decl::{DeclStart, Declaration},
     expr::Expression,
     func::{FunctionArg, FunctionDecl},
     punctuated::Punctuated,
@@ -27,6 +27,13 @@ mod punctuated;
 mod stmt;
 mod r#type;
 mod r#while;
+
+pub(crate) mod mir {
+    pub use super::{
+        expr::{mir_binaryop::MirBinaryOp, mir_unaryop::MirUnaryOp},
+        r#type::mir::MirPrimitive,
+    };
+}
 
 pub type Block = Brace<Vec<Statement>>;
 

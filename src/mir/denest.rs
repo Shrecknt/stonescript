@@ -1,6 +1,6 @@
-use crate::ast::Statement;
+use crate::hir::Statement;
 
-use super::{mangle::random_name, rebuilt_statement::RebuiltStatement};
+use super::rebuilt_statement::RebuiltStatement;
 
 pub fn denest_statement(
     root: &mut Vec<RebuiltStatement>,

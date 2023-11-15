@@ -39,6 +39,28 @@ macro_rules! define_primitive {
                 }
             }
         }
+
+        pub(crate) mod mir {
+            use crate::mir::ToMir;
+            use super::Primitive;
+
+            #[derive(Debug, Clone, PartialEq)]
+            pub enum MirPrimitive {
+                $($variant),+
+            }
+
+            impl ToMir for Primitive {
+                type Output = MirPrimitive;
+
+                fn into_mir(self) -> Self::Output {
+                    match self {
+                        $(
+                            Self::$variant { span: _ } => MirPrimitive::$variant,
+                        )+
+                    }
+                }
+            }
+        }
     }
 }
 

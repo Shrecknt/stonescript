@@ -1,6 +1,6 @@
 use crate::{
-    ast::{Block, Expression},
     ast_item,
+    hir::{Block, Expression},
     token::{Parenthesis, While},
     Span, Spanned,
 };

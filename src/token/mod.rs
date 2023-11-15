@@ -1,10 +1,10 @@
 use self::cursor::Cursor;
 pub use self::{
-    group::{ast::*, Delimiter, Group},
+    group::{hir::*, Delimiter, Group},
     ident::{Ident, InvalidXID, XID},
     keyword::*,
     literal::{Literal, LiteralType},
-    punct::{ast::*, InvalidPunct, Punct, PunctToken},
+    punct::{hir::*, InvalidPunct, Punct, PunctToken},
     reader::parse_from_reader,
 };
 use crate::{ParseError, Sealed, Spanned, TokenTree};

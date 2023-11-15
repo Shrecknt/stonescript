@@ -4,20 +4,124 @@ use crate::{
     token::{
         And, Bracket, Comma, Delimiter, Dot, Equals, GreaterThan, GreaterThanEquals, Ident,
         LessThan, LessThanEquals, Literal, Minus, Not, NotEquals, Or, Parenthesis, Percent, Plus,
-        PunctToken, Slash, Star, ToTokenTree,
+        Punct, PunctToken, Slash, Star, ToTokenTree,
     },
     Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree,
 };
 
-ast_item!(
-    pub enum UnaryOp {
-        Not(Not),
-        Negate(Minus),
+macro_rules! unary_op_parse_left {
+    ($token_iter:ident right $name:ident) => {
+        None
+    };
+    ($token_iter:ident left $name:ident) => {
+        Some(Self::$name($token_iter.parse()?))
+    };
+}
+
+macro_rules! unary_op_parse_right {
+    ($punct:ident left $name:ident) => {
+        None
+    };
+    ($punct:ident right $name:ident) => {
+        if let Some(token) = $punct.into() {
+            Some(Self::$name(token))
+        } else {
+            None
+        }
+    };
+}
+
+macro_rules! unary_op_span {
+    ($inner:ident $expr:ident left) => {
+        Span::from_start_end($inner.span(), $expr.span())
+    };
+    ($inner:ident $expr:ident right) => {
+        Span::from_start_end($expr.span(), $inner.span())
+    };
+}
+
+macro_rules! unary_op_to_tokens {
+    ($stream:ident $inner:ident $expr:ident left) => {{
+        $inner.write_into_stream($stream);
+        $expr.write_into_stream($stream);
+    }};
+    ($stream:ident $inner:ident $expr:ident right) => {{
+        $expr.write_into_stream($stream);
+        $inner.write_into_stream($stream);
+    }};
+}
+
+macro_rules! define_unary_op {
+    ($($pos:ident $name:ident : $inner:ident),+ $(,)?) => {
+        ast_item!(
+            pub enum UnaryOp {
+                $($name($inner)),+
+            }
+        );
+
+        impl UnaryOp {
+            fn parse_left(token_iter: &mut TokenIter, punct: PunctToken) -> SyntaxResult<Option<UnaryOp>> {
+                Ok(match punct {
+                    $(PunctToken::$inner => unary_op_parse_left!(token_iter $pos $name),)+
+                    _ => None,
+                })
+            }
+
+            fn parse_right(punct: Punct) -> Option<UnaryOp> {
+                match punct.inner() {
+                    $(PunctToken::$inner => unary_op_parse_right!(punct $pos $name),)+
+                    _ => None,
+                }
+            }
+
+            fn span_with_expr(&self, expr: &Expression) -> Span {
+                match self {
+                    $(
+                        Self::$name(inner) => unary_op_span!(inner expr $pos),
+                    )+
+                }
+            }
+
+            fn to_tokens_with_expr(self, expr: Expression, stream: &mut Vec<TokenTree>) {
+                match self {
+                    $(
+                        Self::$name(inner) => unary_op_to_tokens!(stream inner expr $pos),
+                    )+
+                }
+            }
+        }
+
+        pub(crate) mod mir_unaryop {
+            use crate::mir::ToMir;
+            use super::UnaryOp;
+
+            #[derive(Debug, Clone, PartialEq)]
+            pub enum MirUnaryOp {
+                $($name),+
+            }
+
+            impl ToMir for UnaryOp {
+                type Output = MirUnaryOp;
+
+                fn into_mir(self) -> Self::Output {
+                    match self {
+                        $(
+                            Self::$name(_) => MirUnaryOp::$name,
+                        )+
+                    }
+                }
+            }
+        }
     }
+}
+
+define_unary_op!(
+    left Not: Not,
+    left Negate: Minus,
 );
 
 macro_rules! define_binary_op {
-    ($($name:ident : $inner:ident),+) => {
+    ($($name:ident : $inner:ident),+ $(,)?) => {
         ast_item!(
             pub enum BinaryOp {
                 $($name($inner)),+
@@ -25,17 +129,35 @@ macro_rules! define_binary_op {
         );
 
         impl BinaryOp {
-            fn parse(token_iter: &mut TokenIter, punct: PunctToken) -> SyntaxResult<Option<(BinaryOp, Box<Expression>)>> {
+            fn parse(token_iter: &mut TokenIter, punct: PunctToken) -> SyntaxResult<Option<BinaryOp>> {
                 Ok(match punct {
                     $(
-                        PunctToken::$inner => {
-                            let op = token_iter.parse()?;
-                            let right = token_iter.parse()?;
-                            Some((Self::$name(op), Box::new(right)))
-                        }
+                        PunctToken::$inner => Some(Self::$name(token_iter.parse()?)),
                     )+
-                    _ => None
+                    _ => None,
                 })
+            }
+        }
+
+        pub(crate) mod mir_binaryop {
+            use crate::mir::ToMir;
+            use super::BinaryOp;
+
+            #[derive(Debug, Clone, PartialEq)]
+            pub enum MirBinaryOp {
+                $($name),+
+            }
+
+            impl ToMir for BinaryOp {
+                type Output = MirBinaryOp;
+
+                fn into_mir(self) -> Self::Output {
+                    match self {
+                        $(
+                            Self::$name(_) => MirBinaryOp::$name,
+                        )+
+                    }
+                }
             }
         }
     }
@@ -54,7 +176,7 @@ define_binary_op!(
     GreaterThan: GreaterThan,
     GreaterThanEquals: GreaterThanEquals,
     And: And,
-    Or: Or
+    Or: Or,
 );
 
 #[derive(Debug, Clone, PartialEq)]
@@ -92,8 +214,11 @@ fn continue_expr(token_iter: &mut TokenIter, left: Expression) -> SyntaxResult<E
                     let dot = token_iter.parse()?;
                     let ident = token_iter.parse()?;
                     continue_expr(token_iter, Expression::Property(Box::new(left), dot, ident))
-                } else if let Some((op, right)) = BinaryOp::parse(token_iter, token)? {
-                    Ok(Expression::BinaryOp(Box::new(left), op, right))
+                } else if let Some(op) = UnaryOp::parse_right(*punct) {
+                    Ok(Expression::UnaryOp(op, Box::new(left)))
+                } else if let Some(op) = BinaryOp::parse(token_iter, token)? {
+                    let right = token_iter.parse()?;
+                    Ok(Expression::BinaryOp(Box::new(left), op, Box::new(right)))
                 } else {
                     Ok(left)
                 }
@@ -119,16 +244,12 @@ impl Parse for Expression {
                 }
             }
             TokenTree::Punct(punct) => {
-                let op = if let Some(not) = punct.into() {
-                    UnaryOp::Not(not)
-                } else if let Some(minus) = punct.into() {
-                    UnaryOp::Negate(minus)
+                if let Some(op) = UnaryOp::parse_left(token_iter, punct.inner())? {
+                    let right = token_iter.parse()?;
+                    Self::UnaryOp(op, Box::new(right))
                 } else {
                     return punct.unexpected();
-                };
-
-                let expr = token_iter.parse()?;
-                Self::UnaryOp(op, Box::new(expr))
+                }
             }
         };
 
@@ -146,10 +267,7 @@ impl Spanned for Expression {
             Self::Call(left, args) => Span::from_start_end(left.span(), args.span()),
             Self::Index(left, index) => Span::from_start_end(left.span(), index.span()),
             Self::BinaryOp(left, _op, right) => Span::from_start_end(left.span(), right.span()),
-            Self::UnaryOp(op, expr) => match op {
-                UnaryOp::Negate(minus) => Span::from_start_end(minus.span(), expr.span()),
-                UnaryOp::Not(not) => Span::from_start_end(not.span(), expr.span()),
-            },
+            Self::UnaryOp(op, expr) => op.span_with_expr(expr),
         }
     }
 }
@@ -178,16 +296,7 @@ impl ToTokens for Expression {
                 op.write_into_stream(stream);
                 right.write_into_stream(stream);
             }
-            Self::UnaryOp(op, expr) => match op {
-                UnaryOp::Negate(minus) => {
-                    minus.write_into_stream(stream);
-                    expr.write_into_stream(stream);
-                }
-                UnaryOp::Not(not) => {
-                    not.write_into_stream(stream);
-                    expr.write_into_stream(stream);
-                }
-            },
+            Self::UnaryOp(op, expr) => op.to_tokens_with_expr(*expr, stream),
         }
     }
 }
