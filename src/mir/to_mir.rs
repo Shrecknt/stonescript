@@ -1,4 +1,4 @@
-use super::{MirBinaryOp, MirUnaryOp};
+use super::{MirBinaryOp, MirUnaryOp, VariableName};
 use crate::{
     hir::{
         mir::MirPrimitive, Assignment, DeclStart, Declaration, ElseBlock, Expression,
@@ -14,21 +14,21 @@ pub trait ToMir {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MirStatement {
-    Block(Vec<MirStatement>),
-    Unsafe(Vec<MirStatement>),
-    Expression(MirExpression),
-    Return(MirExpression),
-    Assignment(MirAssignment),
-    Declaration(MirDeclaration),
-    Function(MirFunction),
-    If(MirIf),
-    While(MirWhile),
-    For(MirFor),
+pub enum MirStatement<V: VariableName> {
+    Block(Vec<MirStatement<V>>),
+    Unsafe(Vec<MirStatement<V>>),
+    Expression(MirExpression<V>),
+    Return(MirExpression<V>),
+    Assignment(MirAssignment<V>),
+    Declaration(MirDeclaration<V>),
+    Function(MirFunction<V>),
+    If(MirIf<V>),
+    While(MirWhile<V>),
+    For(MirFor<V>),
 }
 
 impl ToMir for Statement {
-    type Output = MirStatement;
+    type Output = MirStatement<XID>;
 
     fn into_mir(self) -> Self::Output {
         match self {
@@ -47,7 +47,7 @@ impl ToMir for Statement {
 }
 
 impl ToMir for Vec<Statement> {
-    type Output = Vec<MirStatement>;
+    type Output = Vec<MirStatement<XID>>;
 
     fn into_mir(self) -> Self::Output {
         self.into_iter()
@@ -57,18 +57,18 @@ impl ToMir for Vec<Statement> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MirExpression {
+pub enum MirExpression<V: VariableName> {
     Literal(LiteralType),
-    Variable(XID),
-    Property(Box<MirExpression>, XID),
-    Call(Box<MirExpression>, Vec<MirExpression>),
-    Index(Box<MirExpression>, Box<MirExpression>),
-    UnaryOp(MirUnaryOp, Box<MirExpression>),
-    BinaryOp(Box<MirExpression>, MirBinaryOp, Box<MirExpression>),
+    Variable(V),
+    Property(Box<MirExpression<V>>, XID),
+    Call(Box<MirExpression<V>>, Vec<MirExpression<V>>),
+    Index(Box<MirExpression<V>>, Box<MirExpression<V>>),
+    UnaryOp(MirUnaryOp, Box<MirExpression<V>>),
+    BinaryOp(Box<MirExpression<V>>, MirBinaryOp, Box<MirExpression<V>>),
 }
 
 impl ToMir for Expression {
-    type Output = MirExpression;
+    type Output = MirExpression<XID>;
 
     fn into_mir(self) -> Self::Output {
         match self {
@@ -120,15 +120,15 @@ impl ToMir for Type {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MirDeclaration {
+pub struct MirDeclaration<V: VariableName> {
     pub is_static: bool,
-    pub name: XID,
+    pub name: V,
     pub ty: MirType,
-    pub value: Option<MirExpression>,
+    pub value: Option<MirExpression<V>>,
 }
 
 impl ToMir for Declaration {
-    type Output = MirDeclaration;
+    type Output = MirDeclaration<XID>;
 
     fn into_mir(self) -> Self::Output {
         MirDeclaration {
@@ -144,16 +144,16 @@ impl ToMir for Declaration {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MirFunction {
+pub struct MirFunction<V: VariableName> {
     pub is_static: bool,
     pub name: XID,
-    pub args: Vec<(XID, MirType)>,
+    pub args: Vec<(V, MirType)>,
     pub return_type: MirType,
-    pub block: Vec<MirStatement>,
+    pub block: Vec<MirStatement<V>>,
 }
 
 impl ToMir for FunctionDecl {
-    type Output = MirFunction;
+    type Output = MirFunction<XID>;
 
     fn into_mir(self) -> Self::Output {
         MirFunction {
@@ -173,14 +173,14 @@ impl ToMir for FunctionDecl {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MirIf {
-    pub condition: MirExpression,
-    pub block: Vec<MirStatement>,
-    pub else_block: Option<MirElseBlock>,
+pub struct MirIf<V: VariableName> {
+    pub condition: MirExpression<V>,
+    pub block: Vec<MirStatement<V>>,
+    pub else_block: Option<MirElseBlock<V>>,
 }
 
 impl ToMir for IfBlock {
-    type Output = MirIf;
+    type Output = MirIf<XID>;
 
     fn into_mir(self) -> Self::Output {
         MirIf {
@@ -192,13 +192,13 @@ impl ToMir for IfBlock {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MirElseBlock {
-    ElseIf(Box<MirIf>),
-    Else(Vec<MirStatement>),
+pub enum MirElseBlock<V: VariableName> {
+    ElseIf(Box<MirIf<V>>),
+    Else(Vec<MirStatement<V>>),
 }
 
 impl ToMir for ElseBlock {
-    type Output = MirElseBlock;
+    type Output = MirElseBlock<XID>;
 
     fn into_mir(self) -> Self::Output {
         match self {
@@ -209,13 +209,13 @@ impl ToMir for ElseBlock {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MirWhile {
-    pub condition: MirExpression,
-    pub block: Vec<MirStatement>,
+pub struct MirWhile<V: VariableName> {
+    pub condition: MirExpression<V>,
+    pub block: Vec<MirStatement<V>>,
 }
 
 impl ToMir for WhileLoop {
-    type Output = MirWhile;
+    type Output = MirWhile<XID>;
 
     fn into_mir(self) -> Self::Output {
         MirWhile {
@@ -226,15 +226,15 @@ impl ToMir for WhileLoop {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MirFor {
-    pub init: MirDeclaration,
-    pub condition: MirExpression,
-    pub update: MirAssignment,
-    pub block: Vec<MirStatement>,
+pub struct MirFor<V: VariableName> {
+    pub init: MirDeclaration<V>,
+    pub condition: MirExpression<V>,
+    pub update: MirAssignment<V>,
+    pub block: Vec<MirStatement<V>>,
 }
 
 impl ToMir for ForLoop {
-    type Output = MirFor;
+    type Output = MirFor<XID>;
 
     fn into_mir(self) -> Self::Output {
         let inner = self.inner.into_contents();
@@ -248,13 +248,13 @@ impl ToMir for ForLoop {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MirAssignment {
-    pub variable_name: XID,
-    pub value: MirExpression,
+pub struct MirAssignment<V: VariableName> {
+    pub variable_name: V,
+    pub value: MirExpression<V>,
 }
 
 impl ToMir for Assignment {
-    type Output = MirAssignment;
+    type Output = MirAssignment<XID>;
 
     fn into_mir(self) -> Self::Output {
         MirAssignment {

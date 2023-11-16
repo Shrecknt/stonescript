@@ -1,5 +1,5 @@
 use super::{cursor::Cursor, ParseError, ParseResult, ParseToken, ToTokenTree, TokenTree};
-use crate::{Span, Spanned};
+use crate::{private::Sealed, Span, Spanned};
 use std::{fmt, iter::FusedIterator, str::FromStr};
 use thiserror::Error;
 
@@ -7,14 +7,16 @@ use thiserror::Error;
 #[error("invalid xid")]
 pub struct InvalidXID;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub struct XID(pub String);
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
+pub struct XID(String);
 
 impl XID {
-    fn inner(&self) -> &str {
+    pub fn inner(&self) -> &str {
         &self.0
     }
 }
+
+impl Sealed for XID {}
 
 impl FromStr for XID {
     type Err = InvalidXID;
