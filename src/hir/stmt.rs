@@ -19,7 +19,7 @@ ast_item!(
         Return((Return, Expression, Semicolon)),
         While(WhileLoop),
         If(IfBlock),
-        For(ForLoop),
+        For(Box<ForLoop>),
         Unsafe((Unsafe, Block)),
     }
 );
@@ -50,7 +50,7 @@ impl Parse for Statement {
                 }
 
                 if For::is_ident(ident) {
-                    return Ok(Self::For(token_iter.parse()?));
+                    return Ok(Self::For(Box::new(token_iter.parse()?)));
                 }
 
                 if Function::is_ident(ident) {

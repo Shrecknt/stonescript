@@ -109,6 +109,7 @@ define_punct!(
     Dot => '.',
     Ternary => '?',
     Colon => ':',
+    PathSeparator => ':' ':',
     Equals => '=' '=',
     And => '&' '&',
     Or => '|' '|',

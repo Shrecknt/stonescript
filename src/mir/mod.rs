@@ -1,33 +1,17 @@
-use std::fmt;
-
 pub use self::{
-    mangle::{Mangle, Scope},
+    mangle::{Mangle, MangledVar, Scope},
     to_mir::{
         MirAssignment, MirDeclaration, MirElseBlock, MirExpression, MirFor, MirFunction, MirIf,
-        MirStatement, MirType, MirWhile, ToMir,
+        MirPath, MirStatement, MirType, MirWhile, ToMir,
     },
 };
 pub use crate::hir::mir::{MirBinaryOp, MirUnaryOp};
-use crate::{private::Sealed, token::XID};
+use crate::private::Sealed;
+use std::fmt::Debug;
 
-pub trait VariableName: Sealed {}
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MangledVar(u64);
-impl fmt::Display for MangledVar {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:016X}", self.0)
-    }
+pub trait VariableName: Sealed {
+    type Path: Debug + Clone + PartialEq;
 }
-impl fmt::Debug for MangledVar {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MangledVar({})", self.to_string())
-    }
-}
-
-impl Sealed for MangledVar {}
-impl VariableName for XID {}
-impl VariableName for MangledVar {}
 
 //mod denest;
 mod mangle;

@@ -21,6 +21,18 @@ impl<T, P> Punctuated<T, P> {
         map
     }
 
+    pub fn first_token(&self) -> &T {
+        if let Some((token, _)) = self.inner.first() {
+            &token
+        } else {
+            self.last.as_ref().expect("Punctuated should not be empty")
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len() + if self.last.is_some() { 1 } else { 0 }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.inner.len() == 0 && self.last.is_none()
     }

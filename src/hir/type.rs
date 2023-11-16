@@ -1,3 +1,4 @@
+use super::Path;
 use crate::{
     ast_item,
     token::{Ident, ToTokenTree},
@@ -78,17 +79,20 @@ define_primitive!(
 ast_item!(
     pub enum Type {
         Primitive(Primitive),
-        UserDefined(Ident),
+        UserDefined(Path),
     }
 );
 
 impl Parse for Type {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
-        let ident: Ident = token_iter.parse()?;
-        if let Some(primitive) = Primitive::from_ident(&ident) {
-            Ok(Self::Primitive(primitive))
-        } else {
-            Ok(Self::UserDefined(ident))
+        let path: Path = token_iter.parse()?;
+
+        if path.len() == 1 {
+            if let Some(primitive) = Primitive::from_ident(path.first_token()) {
+                return Ok(Self::Primitive(primitive));
+            }
         }
+
+        Ok(Self::UserDefined(path))
     }
 }

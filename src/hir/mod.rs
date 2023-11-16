@@ -11,7 +11,7 @@ pub use self::{
     stmt::Statement,
 };
 use crate::{
-    token::{Brace, ToTokenTree},
+    token::{Brace, Ident, PathSeparator, ToTokenTree},
     Spanned, TokenStream, TokenTree,
 };
 
@@ -36,6 +36,7 @@ pub(crate) mod mir {
 }
 
 pub type Block = Brace<Vec<Statement>>;
+pub type Path = Punctuated<Ident, PathSeparator>;
 
 pub trait ToTokens: Spanned {
     fn write_into_stream(self, stream: &mut Vec<TokenTree>);

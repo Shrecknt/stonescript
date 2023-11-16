@@ -1,8 +1,8 @@
 use super::{MirBinaryOp, MirUnaryOp, VariableName};
 use crate::{
     hir::{
-        mir::MirPrimitive, Assignment, DeclStart, Declaration, ElseBlock, Expression,
-        ForLoop, FunctionDecl, IfBlock, Statement, Type, WhileLoop,
+        mir::MirPrimitive, Assignment, DeclStart, Declaration, ElseBlock, Expression, ForLoop,
+        FunctionDecl, IfBlock, Path, Statement, Type, WhileLoop,
     },
     token::{LiteralType, XID},
 };
@@ -11,6 +11,21 @@ pub trait ToMir {
     type Output;
 
     fn into_mir(self) -> Self::Output;
+}
+
+pub type MirPath = Vec<XID>;
+impl VariableName for XID {
+    type Path = MirPath;
+}
+
+impl ToMir for Path {
+    type Output = MirPath;
+    fn into_mir(self) -> Self::Output {
+        self.into_tokens()
+            .into_iter()
+            .map(|ident| ident.into_inner())
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,7 +39,7 @@ pub enum MirStatement<V: VariableName> {
     Function(MirFunction<V>),
     If(MirIf<V>),
     While(MirWhile<V>),
-    For(MirFor<V>),
+    For(Box<MirFor<V>>),
 }
 
 impl ToMir for Statement {
@@ -41,7 +56,7 @@ impl ToMir for Statement {
             Self::Function(func) => MirStatement::Function(func.into_mir()),
             Self::If(if_block) => MirStatement::If(if_block.into_mir()),
             Self::While(while_loop) => MirStatement::While(while_loop.into_mir()),
-            Self::For(for_loop) => MirStatement::For(for_loop.into_mir()),
+            Self::For(for_loop) => MirStatement::For(Box::new(for_loop.into_mir())),
         }
     }
 }
@@ -50,18 +65,16 @@ impl ToMir for Vec<Statement> {
     type Output = Vec<MirStatement<XID>>;
 
     fn into_mir(self) -> Self::Output {
-        self.into_iter()
-            .map(ToMir::into_mir)
-            .collect()
+        self.into_iter().map(ToMir::into_mir).collect()
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirExpression<V: VariableName> {
     Literal(LiteralType),
-    Variable(V),
+    Variable(V::Path),
     Property(Box<MirExpression<V>>, XID),
-    Call(Box<MirExpression<V>>, Vec<MirExpression<V>>),
+    Call(MirPath, Vec<MirExpression<V>>),
     Index(Box<MirExpression<V>>, Box<MirExpression<V>>),
     UnaryOp(MirUnaryOp, Box<MirExpression<V>>),
     BinaryOp(Box<MirExpression<V>>, MirBinaryOp, Box<MirExpression<V>>),
@@ -73,12 +86,12 @@ impl ToMir for Expression {
     fn into_mir(self) -> Self::Output {
         match self {
             Self::Literal(literal) => MirExpression::Literal(literal.into_inner()),
-            Self::Variable(ident) => MirExpression::Variable(ident.into_inner()),
+            Self::Variable(path) => MirExpression::Variable(path.into_mir()),
             Self::Property(expr, _, ident) => {
                 MirExpression::Property(Box::new(expr.into_mir()), ident.into_inner())
             }
-            Self::Call(expr, args) => MirExpression::Call(
-                Box::new(expr.into_mir()),
+            Self::Call(path, args) => MirExpression::Call(
+                path.into_mir(),
                 args.into_contents()
                     .into_tokens()
                     .into_iter()
@@ -105,7 +118,7 @@ impl ToMir for Expression {
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirType {
     Primitive(MirPrimitive),
-    UserDefined(XID),
+    UserDefined(MirPath),
 }
 
 impl ToMir for Type {
@@ -114,7 +127,7 @@ impl ToMir for Type {
     fn into_mir(self) -> Self::Output {
         match self {
             Self::Primitive(primitive) => MirType::Primitive(primitive.into_mir()),
-            Self::UserDefined(ident) => MirType::UserDefined(ident.into_inner()),
+            Self::UserDefined(ident) => MirType::UserDefined(ident.into_mir()),
         }
     }
 }
@@ -229,7 +242,7 @@ impl ToMir for WhileLoop {
 pub struct MirFor<V: VariableName> {
     pub init: MirDeclaration<V>,
     pub condition: MirExpression<V>,
-    pub update: MirAssignment<V>,
+    pub update: MirStatement<V>,
     pub block: Vec<MirStatement<V>>,
 }
 
@@ -249,7 +262,7 @@ impl ToMir for ForLoop {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MirAssignment<V: VariableName> {
-    pub variable_name: V,
+    pub variable: V::Path,
     pub value: MirExpression<V>,
 }
 
@@ -258,7 +271,7 @@ impl ToMir for Assignment {
 
     fn into_mir(self) -> Self::Output {
         MirAssignment {
-            variable_name: self.variable_name.into_inner(),
+            variable: self.variable.into_mir(),
             value: self.value.into_mir(),
         }
     }

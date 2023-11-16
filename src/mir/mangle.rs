@@ -1,15 +1,28 @@
 use super::{
-    MangledVar, MirAssignment, MirDeclaration, MirElseBlock, MirExpression, MirFor, MirFunction,
-    MirIf, MirStatement, MirWhile,
+    MirAssignment, MirDeclaration, MirElseBlock, MirExpression, MirFor, MirFunction, MirIf,
+    MirPath, MirStatement, MirWhile, VariableName,
 };
-use crate::token::XID;
+use crate::{private::Sealed, token::XID};
 use rustc_hash::FxHasher;
-use std::{collections::HashMap, hash::Hasher};
+use std::{collections::HashMap, fmt, hash::Hasher, slice::Iter};
 
-fn hash_str(hasher: &mut FxHasher, value: &str) {
-    hasher.write(value.as_bytes());
-    hasher.write_u8(0xFF);
-    // 0xFF cannot show up in UTF-8 strings, this marks the end of a string and makes hashes unique.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MangledVar(u64);
+impl fmt::Display for MangledVar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:016X}", self.0)
+    }
+}
+
+impl fmt::Debug for MangledVar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "MangledVar({})", self.to_string())
+    }
+}
+
+impl Sealed for MangledVar {}
+impl VariableName for MangledVar {
+    type Path = Self;
 }
 
 pub struct Scope<'a> {
@@ -75,9 +88,23 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn get_variable(&mut self, variable: XID) -> MangledVar {
-        self.find_defined_variable(&variable)
-            .unwrap_or_else(|| self.hash_named(variable.inner()))
+    fn find_absolute_variable(&self, mut segments: Iter<'_, XID>) -> MangledVar {
+        if let Some(segment) = segments.next() {
+            let id = self.hash_named(segment.inner());
+            self.new_child(id).find_absolute_variable(segments)
+        } else {
+            self.id
+        }
+    }
+
+    pub fn get_variable(&mut self, variable: MirPath) -> MangledVar {
+        if let [segment] = variable.as_slice() {
+            self.find_defined_variable(&segment)
+                .unwrap_or_else(|| self.hash_named(segment.inner()))
+        } else {
+            let (first, segments) = variable.split_first().expect("Path should not be empty");
+            Scope::new(first.inner()).find_absolute_variable(segments.iter())
+        }
     }
 
     pub fn new_variable(&mut self, variable: XID) -> MangledVar {
@@ -90,6 +117,12 @@ impl<'a> Scope<'a> {
         let id = self.hash_unnamed();
         value.mangle(&mut self.new_child(id))
     }
+}
+
+fn hash_str(hasher: &mut FxHasher, value: &str) {
+    hasher.write(value.as_bytes());
+    hasher.write_u8(0xFF);
+    // 0xFF cannot show up in UTF-8 strings, this marks the end of a string and makes hashes unique.
 }
 
 pub trait Mangle {
@@ -115,7 +148,7 @@ impl Mangle for MirStatement<XID> {
             MirStatement::Assignment(assign) => MirStatement::Assignment(assign.mangle(scope)),
             MirStatement::Declaration(decl) => MirStatement::Declaration(decl.mangle(scope)),
             MirStatement::Function(func) => MirStatement::Function(func.mangle(scope)),
-            MirStatement::For(for_loop) => MirStatement::For(for_loop.mangle(scope)),
+            MirStatement::For(for_loop) => MirStatement::For(Box::new(for_loop.mangle(scope))),
             MirStatement::While(while_loop) => MirStatement::While(while_loop.mangle(scope)),
             MirStatement::If(if_block) => MirStatement::If(if_block.mangle(scope)),
         }
@@ -130,9 +163,7 @@ impl Mangle for MirExpression<XID> {
             MirExpression::Variable(variable) => {
                 MirExpression::Variable(scope.get_variable(variable))
             }
-            MirExpression::Call(left, args) => {
-                MirExpression::Call(Box::new(left.mangle(scope)), args.mangle(scope))
-            }
+            MirExpression::Call(path, args) => MirExpression::Call(path, args.mangle(scope)),
             MirExpression::Index(left, index) => {
                 MirExpression::Index(Box::new(left.mangle(scope)), Box::new(index.mangle(scope)))
             }
@@ -155,7 +186,7 @@ impl Mangle for MirAssignment<XID> {
     type Output = MirAssignment<MangledVar>;
     fn mangle(self, scope: &mut Scope) -> Self::Output {
         MirAssignment {
-            variable_name: scope.get_variable(self.variable_name),
+            variable: scope.get_variable(self.variable),
             value: self.value.mangle(scope),
         }
     }

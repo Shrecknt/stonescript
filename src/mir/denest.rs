@@ -1,6 +1,5 @@
-use crate::hir::Statement;
-
 use super::rebuilt_statement::RebuiltStatement;
+use crate::hir::Statement;
 
 pub fn denest_statement(
     root: &mut Vec<RebuiltStatement>,

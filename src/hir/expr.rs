@@ -1,4 +1,4 @@
-use super::{Punctuated, ToTokens};
+use super::{Path, Punctuated, ToTokens};
 use crate::{
     ast_item,
     token::{
@@ -10,11 +10,15 @@ use crate::{
 };
 
 macro_rules! unary_op_parse_left {
-    ($token_iter:ident right $name:ident) => {
+    ($punct:ident right $name:ident) => {
         None
     };
-    ($token_iter:ident left $name:ident) => {
-        Some(Self::$name($token_iter.parse()?))
+    ($punct:ident left $name:ident) => {
+        if let Some(token) = $punct.into() {
+            Some(Self::$name(token))
+        } else {
+            None
+        }
     };
 }
 
@@ -60,9 +64,9 @@ macro_rules! define_unary_op {
         );
 
         impl UnaryOp {
-            fn parse_left(token_iter: &mut TokenIter, punct: PunctToken) -> SyntaxResult<Option<UnaryOp>> {
-                Ok(match punct {
-                    $(PunctToken::$inner => unary_op_parse_left!(token_iter $pos $name),)+
+            fn parse_left(punct: Punct) -> SyntaxResult<Option<UnaryOp>> {
+                Ok(match punct.inner() {
+                    $(PunctToken::$inner => unary_op_parse_left!(punct $pos $name),)+
                     _ => None,
                 })
             }
@@ -182,78 +186,81 @@ define_binary_op!(
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Literal(Literal),
-    Variable(Ident),
+    Variable(Path),
     Property(Box<Expression>, Dot, Ident),
-    Call(Box<Expression>, Parenthesis<Punctuated<Expression, Comma>>),
+    Call(Path, Parenthesis<Punctuated<Expression, Comma>>),
     Parenthesized(Box<Parenthesis<Expression>>),
     Index(Box<Expression>, Box<Bracket<Expression>>),
     UnaryOp(UnaryOp, Box<Expression>),
     BinaryOp(Box<Expression>, BinaryOp, Box<Expression>),
 }
 
-fn continue_expr(token_iter: &mut TokenIter, left: Expression) -> SyntaxResult<Expression> {
-    if let Some(next_token) = token_iter.peek() {
-        match next_token {
-            TokenTree::Group(group) => match group.delimiter() {
-                Delimiter::Parenthesis => {
-                    let args = token_iter.parse()?;
-                    continue_expr(token_iter, Expression::Call(Box::new(left), args))
+impl Expression {
+    fn continue_parsing(self, token_iter: &mut TokenIter) -> SyntaxResult<Self> {
+        if let Some(next_token) = token_iter.peek() {
+            match next_token {
+                TokenTree::Group(group) => match group.delimiter() {
+                    Delimiter::Parenthesis => {
+                        if let Self::Variable(path) = self {
+                            let args = token_iter.parse()?;
+                            Self::Call(path, args).continue_parsing(token_iter)
+                        } else {
+                            Ok(self)
+                        }
+                    }
+                    Delimiter::Bracket => {
+                        let index = token_iter.parse()?;
+                        Self::Index(Box::new(self), Box::new(index)).continue_parsing(token_iter)
+                    }
+                    _ => Ok(self),
+                },
+                TokenTree::Punct(punct) => {
+                    let token = punct.inner();
+                    if let PunctToken::Dot = token {
+                        let dot = token_iter.parse()?;
+                        let ident = token_iter.parse()?;
+                        Self::Property(Box::new(self), dot, ident).continue_parsing(token_iter)
+                    } else if let Some(op) = UnaryOp::parse_right(*punct) {
+                        Ok(Self::UnaryOp(op, Box::new(self)))
+                    } else if let Some(op) = BinaryOp::parse(token_iter, token)? {
+                        let right = token_iter.parse()?;
+                        Ok(Self::BinaryOp(Box::new(self), op, Box::new(right)))
+                    } else {
+                        Ok(self)
+                    }
                 }
-                Delimiter::Bracket => {
-                    let index = token_iter.parse()?;
-                    continue_expr(
-                        token_iter,
-                        Expression::Index(Box::new(left), Box::new(index)),
-                    )
-                }
-                _ => Ok(left),
-            },
-            TokenTree::Punct(punct) => {
-                let token = punct.inner();
-                if let PunctToken::Dot = token {
-                    let dot = token_iter.parse()?;
-                    let ident = token_iter.parse()?;
-                    continue_expr(token_iter, Expression::Property(Box::new(left), dot, ident))
-                } else if let Some(op) = UnaryOp::parse_right(*punct) {
-                    Ok(Expression::UnaryOp(op, Box::new(left)))
-                } else if let Some(op) = BinaryOp::parse(token_iter, token)? {
-                    let right = token_iter.parse()?;
-                    Ok(Expression::BinaryOp(Box::new(left), op, Box::new(right)))
-                } else {
-                    Ok(left)
-                }
+                _ => Ok(self),
             }
-            _ => Ok(left),
+        } else {
+            Ok(self)
         }
-    } else {
-        Ok(left)
     }
 }
 
 impl Parse for Expression {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
-        let left = match token_iter.expect_consume()? {
-            TokenTree::Literal(literal) => Self::Literal(literal),
-            TokenTree::Ident(ident) => Self::Variable(ident),
+        let left = match token_iter.expect_peek()? {
+            TokenTree::Literal(_) => Self::Literal(token_iter.parse()?),
+            TokenTree::Ident(_) => Self::Variable(token_iter.parse()?),
             TokenTree::Group(group) => {
                 if group.delimiter() == Delimiter::Parenthesis {
-                    let inner = group.try_into()?;
+                    let inner = token_iter.parse()?;
                     Self::Parenthesized(Box::new(inner))
                 } else {
-                    return group.unexpected();
+                    return token_iter.expect_consume()?.unexpected();
                 }
             }
-            TokenTree::Punct(punct) => {
-                if let Some(op) = UnaryOp::parse_left(token_iter, punct.inner())? {
+            TokenTree::Punct(_) => {
+                if let Some(op) = UnaryOp::parse_left(token_iter.parse()?)? {
                     let right = token_iter.parse()?;
                     Self::UnaryOp(op, Box::new(right))
                 } else {
-                    return punct.unexpected();
+                    return token_iter.expect_consume()?.unexpected();
                 }
             }
         };
 
-        continue_expr(token_iter, left)
+        left.continue_parsing(token_iter)
     }
 }
 
