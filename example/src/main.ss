@@ -30,5 +30,5 @@ static function main(): int {
 }
 
 static function tick(): void {
-    test += 1;
+    test = test + 1;
 }

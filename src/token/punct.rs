@@ -154,6 +154,7 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Punct {
     fn parse(start: char, mut cursor: Cursor<T>) -> ParseResult<Self> {
         if let Some(next_char) = cursor.peek() {
             let mut candidate = None;
+            let mut two_wide = false;
 
             for (token, char1, char2) in PUNCT_MAP {
                 if start != *char1 {
@@ -162,11 +163,17 @@ impl<T: FusedIterator<Item = char>> ParseToken<T> for Punct {
 
                 if let Some(char2) = *char2 {
                     if next_char == char2 {
-                        candidate = Some(*token)
+                        candidate = Some(*token);
+                        two_wide = true;
                     }
                 } else if candidate.is_none() {
-                    candidate = Some(*token)
+                    candidate = Some(*token);
+                    two_wide = false;
                 }
+            }
+
+            if two_wide {
+                cursor.consume();
             }
 
             if let Some(candidate) = candidate {

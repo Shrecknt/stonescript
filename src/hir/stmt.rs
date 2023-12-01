@@ -74,6 +74,10 @@ impl Parse for Statement {
                 }
             }
             TokenTree::Ident(ident) => {
+                if Import::is_ident(ident) {
+                    return Ok(Self::Import(token_iter.parse()?));
+                }
+
                 if Return::is_ident(ident) {
                     return Ok(Self::Return(token_iter.parse()?));
                 }
