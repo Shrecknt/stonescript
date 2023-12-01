@@ -77,6 +77,12 @@ impl TokenStream {
     }
 }
 
+impl Spanned for TokenStream {
+    fn span(&self) -> Span {
+        self.0.span()
+    }
+}
+
 impl From<Vec<TokenTree>> for TokenStream {
     fn from(value: Vec<TokenTree>) -> Self {
         Self(value)

@@ -64,10 +64,7 @@ impl<'a> From<&'a TokenStream> for TokenIter<'a> {
     }
 }
 
-pub trait Parse
-where
-    Self: Sized,
-{
+pub trait Parse: Sized {
     fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self>;
 }
 
@@ -106,6 +103,18 @@ impl<T: Parse> Parse for Vec<T> {
         }
 
         Ok(items)
+    }
+}
+
+impl Parse for TokenStream {
+    fn parse(token_iter: &mut TokenIter) -> SyntaxResult<Self> {
+        let mut tokens = vec![];
+
+        while let Some(token) = token_iter.consume() {
+            tokens.push(token)
+        }
+
+        Ok(tokens.into())
     }
 }
 

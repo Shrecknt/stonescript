@@ -116,7 +116,8 @@ define_punct!(
     NullishCoalescing => '?' '?',
     Semicolon => ';',
     Comma => ',',
-    Lambda => '-' '>'
+    Lambda => '-' '>',
+    MacroPrefix => '$'
 );
 
 impl fmt::Debug for PunctToken {

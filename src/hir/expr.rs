@@ -3,10 +3,10 @@ use crate::{
     ast_item,
     token::{
         And, Bracket, Comma, Delimiter, Dot, Equals, GreaterThan, GreaterThanEquals, Ident,
-        LessThan, LessThanEquals, Literal, Minus, Not, NotEquals, Or, Parenthesis, Percent, Plus,
-        Punct, PunctToken, Slash, Star, ToTokenTree,
+        LessThan, LessThanEquals, Literal, MacroPrefix, Minus, Not, NotEquals, Or, Parenthesis,
+        Percent, Plus, Punct, PunctToken, Slash, Star, ToTokenTree,
     },
-    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenTree,
+    Parse, Span, Spanned, SyntaxError, SyntaxResult, TokenIter, TokenStream, TokenTree,
 };
 
 macro_rules! unary_op_parse_left {
@@ -193,6 +193,7 @@ pub enum Expression {
     Index(Box<Expression>, Box<Bracket<Expression>>),
     UnaryOp(UnaryOp, Box<Expression>),
     BinaryOp(Box<Expression>, BinaryOp, Box<Expression>),
+    Macro(MacroPrefix, Path, Parenthesis<TokenStream>),
 }
 
 impl Expression {
@@ -250,8 +251,13 @@ impl Parse for Expression {
                     return token_iter.expect_consume()?.unexpected();
                 }
             }
-            TokenTree::Punct(_) => {
-                if let Some(op) = UnaryOp::parse_left(token_iter.parse()?)? {
+            TokenTree::Punct(punct) => {
+                if MacroPrefix::is_punct(punct) {
+                    let prefix_token = token_iter.parse()?;
+                    let path = token_iter.parse()?;
+                    let inner = token_iter.parse()?;
+                    Self::Macro(prefix_token, path, inner)
+                } else if let Some(op) = UnaryOp::parse_left(token_iter.parse()?)? {
                     let right = token_iter.parse()?;
                     Self::UnaryOp(op, Box::new(right))
                 } else {
@@ -271,10 +277,13 @@ impl Spanned for Expression {
             Self::Variable(variable) => variable.span(),
             Self::Parenthesized(inner) => inner.span(),
             Self::Property(left, _dot, name) => Span::from_start_end(left.span(), name.span()),
-            Self::Call(left, args) => Span::from_start_end(left.span(), args.span()),
+            Self::Call(path, args) => Span::from_start_end(path.span(), args.span()),
             Self::Index(left, index) => Span::from_start_end(left.span(), index.span()),
             Self::BinaryOp(left, _op, right) => Span::from_start_end(left.span(), right.span()),
             Self::UnaryOp(op, expr) => op.span_with_expr(expr),
+            Self::Macro(prefix_token, _, inner) => {
+                Span::from_start_end(prefix_token.span(), inner.span())
+            }
         }
     }
 }
@@ -290,8 +299,8 @@ impl ToTokens for Expression {
                 dot.write_into_stream(stream);
                 name.write_into_stream(stream);
             }
-            Self::Call(left, args) => {
-                left.write_into_stream(stream);
+            Self::Call(path, args) => {
+                path.write_into_stream(stream);
                 args.write_into_stream(stream);
             }
             Self::Index(left, index) => {
@@ -304,14 +313,16 @@ impl ToTokens for Expression {
                 right.write_into_stream(stream);
             }
             Self::UnaryOp(op, expr) => op.to_tokens_with_expr(*expr, stream),
+            Self::Macro(prefix_token, path, inner) => {
+                prefix_token.write_into_stream(stream);
+                path.write_into_stream(stream);
+                inner.write_into_stream(stream);
+            }
         }
     }
 }
 
-trait UnexpectedToken
-where
-    Self: Sized + ToTokenTree,
-{
+trait UnexpectedToken: Sized + ToTokenTree {
     fn unexpected<T>(self) -> SyntaxResult<T> {
         Err(SyntaxError::UnexpectedToken(
             self.to_token_tree(),

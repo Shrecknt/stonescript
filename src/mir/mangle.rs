@@ -1,8 +1,8 @@
 use super::{
-    MirAssignment, MirDeclaration, MirElseBlock, MirExpression, MirFor, MirFunction, MirIf,
-    MirPath, MirStatement, MirWhile, VariableName,
+    AbsolutePath, AbsoluteVar, MirAssignment, MirDeclaration, MirElseBlock, MirExpression, MirFor,
+    MirFunction, MirIf, MirStatement, MirType, MirWhile, VariableName,
 };
-use crate::{private::Sealed, token::XID};
+use crate::private::Sealed;
 use rustc_hash::FxHasher;
 use std::{collections::HashMap, fmt, hash::Hasher, slice::Iter};
 
@@ -22,18 +22,19 @@ impl fmt::Debug for MangledVar {
 
 impl Sealed for MangledVar {}
 impl VariableName for MangledVar {
-    type Path = Self;
+    type VariablePath = Self;
+    type OtherPath = AbsolutePath;
 }
 
-pub struct Scope<'a> {
-    parent: Option<&'a Scope<'a>>,
-    variables: HashMap<XID, MangledVar>,
+pub struct MangleScope<'a> {
+    parent: Option<&'a MangleScope<'a>>,
+    variables: HashMap<AbsoluteVar, MangledVar>,
     unnamed_counter: usize,
     id: MangledVar,
 }
 
-impl<'a> Scope<'a> {
-    pub fn new(name: &str) -> Self {
+impl<'a> MangleScope<'a> {
+    fn new(name: &str) -> Self {
         let mut hasher = FxHasher::default();
         hash_str(&mut hasher, name);
         let id = MangledVar(hasher.finish());
@@ -44,6 +45,10 @@ impl<'a> Scope<'a> {
             unnamed_counter: 0,
             id,
         }
+    }
+
+    pub fn mangle_root<T: Mangle>(name: &str, value: T) -> T::Output {
+        value.mangle(&mut Self::new(name))
     }
 
     pub fn new_child(&'a self, id: MangledVar) -> Self {
@@ -74,11 +79,11 @@ impl<'a> Scope<'a> {
         MangledVar(hasher.finish())
     }
 
-    fn find_defined_variable_self(&self, variable: &XID) -> Option<MangledVar> {
+    fn find_defined_variable_self(&self, variable: &AbsoluteVar) -> Option<MangledVar> {
         self.variables.get(variable).copied()
     }
 
-    fn find_defined_variable(&self, variable: &XID) -> Option<MangledVar> {
+    fn find_defined_variable(&self, variable: &AbsoluteVar) -> Option<MangledVar> {
         if let Some(parent) = self.parent {
             parent
                 .find_defined_variable(variable)
@@ -88,7 +93,7 @@ impl<'a> Scope<'a> {
         }
     }
 
-    fn find_absolute_variable(&self, mut segments: Iter<'_, XID>) -> MangledVar {
+    fn find_absolute_variable(&self, mut segments: Iter<'_, AbsoluteVar>) -> MangledVar {
         if let Some(segment) = segments.next() {
             let id = self.hash_named(segment.inner());
             self.new_child(id).find_absolute_variable(segments)
@@ -97,17 +102,21 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn get_variable(&mut self, variable: MirPath) -> MangledVar {
-        if let [segment] = variable.as_slice() {
+    pub fn get_variable(&mut self, variable: AbsolutePath) -> MangledVar {
+        if let [segment] = variable.inner() {
             self.find_defined_variable(&segment)
                 .unwrap_or_else(|| self.hash_named(segment.inner()))
         } else {
-            let (first, segments) = variable.split_first().expect("Path should not be empty");
-            Scope::new(first.inner()).find_absolute_variable(segments.iter())
+            let (first, segments) = variable
+                .inner()
+                .split_first()
+                .expect("Path should not be empty");
+
+            MangleScope::new(first.inner()).find_absolute_variable(segments.iter())
         }
     }
 
-    pub fn new_variable(&mut self, variable: XID) -> MangledVar {
+    pub fn new_variable(&mut self, variable: AbsoluteVar) -> MangledVar {
         let id = self.hash_named(variable.inner());
         self.variables.insert(variable, id);
         id
@@ -127,19 +136,19 @@ fn hash_str(hasher: &mut FxHasher, value: &str) {
 
 pub trait Mangle {
     type Output;
-    fn mangle(self, scope: &mut Scope) -> Self::Output;
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output;
 }
 
 impl<T: Mangle> Mangle for Vec<T> {
     type Output = Vec<T::Output>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         self.into_iter().map(|item| item.mangle(scope)).collect()
     }
 }
 
-impl Mangle for MirStatement<XID> {
+impl Mangle for MirStatement<AbsoluteVar> {
     type Output = MirStatement<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         match self {
             MirStatement::Block(block) => MirStatement::Block(scope.mangle_unnamed_child(block)),
             MirStatement::Unsafe(block) => MirStatement::Unsafe(scope.mangle_unnamed_child(block)),
@@ -151,15 +160,17 @@ impl Mangle for MirStatement<XID> {
             MirStatement::For(for_loop) => MirStatement::For(Box::new(for_loop.mangle(scope))),
             MirStatement::While(while_loop) => MirStatement::While(while_loop.mangle(scope)),
             MirStatement::If(if_block) => MirStatement::If(if_block.mangle(scope)),
+            MirStatement::Import(path) => MirStatement::Import(path),
         }
     }
 }
 
-impl Mangle for MirExpression<XID> {
+impl Mangle for MirExpression<AbsoluteVar> {
     type Output = MirExpression<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         match self {
             MirExpression::Literal(literal) => MirExpression::Literal(literal),
+            MirExpression::Command(command) => MirExpression::Command(command),
             MirExpression::Variable(variable) => {
                 MirExpression::Variable(scope.get_variable(variable))
             }
@@ -182,9 +193,9 @@ impl Mangle for MirExpression<XID> {
     }
 }
 
-impl Mangle for MirAssignment<XID> {
+impl Mangle for MirAssignment<AbsoluteVar> {
     type Output = MirAssignment<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         MirAssignment {
             variable: scope.get_variable(self.variable),
             value: self.value.mangle(scope),
@@ -192,38 +203,38 @@ impl Mangle for MirAssignment<XID> {
     }
 }
 
-impl Mangle for MirDeclaration<XID> {
+impl Mangle for MirDeclaration<AbsoluteVar> {
     type Output = MirDeclaration<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         MirDeclaration {
             is_static: self.is_static,
             name: scope.new_variable(self.name),
-            ty: self.ty,
+            ty: self.ty.mangle(scope),
             value: self.value.map(|val| val.mangle(scope)),
         }
     }
 }
 
-impl Mangle for MirFunction<XID> {
+impl Mangle for MirFunction<AbsoluteVar> {
     type Output = MirFunction<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         MirFunction {
             is_static: self.is_static,
             name: self.name,
             args: self
                 .args
                 .into_iter()
-                .map(|(name, ty)| (scope.new_variable(name), ty))
+                .map(|(name, ty)| (scope.new_variable(name), ty.mangle(scope)))
                 .collect(),
-            return_type: self.return_type,
+            return_type: self.return_type.mangle(scope),
             block: scope.mangle_unnamed_child(self.block),
         }
     }
 }
 
-impl Mangle for MirFor<XID> {
+impl Mangle for MirFor<AbsoluteVar> {
     type Output = MirFor<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         let id = scope.hash_unnamed();
         let mut child_scope = scope.new_child(id);
 
@@ -236,9 +247,9 @@ impl Mangle for MirFor<XID> {
     }
 }
 
-impl Mangle for MirWhile<XID> {
+impl Mangle for MirWhile<AbsoluteVar> {
     type Output = MirWhile<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         MirWhile {
             condition: self.condition.mangle(scope),
             block: scope.mangle_unnamed_child(self.block),
@@ -246,9 +257,9 @@ impl Mangle for MirWhile<XID> {
     }
 }
 
-impl Mangle for MirIf<XID> {
+impl Mangle for MirIf<AbsoluteVar> {
     type Output = MirIf<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         MirIf {
             condition: self.condition.mangle(scope),
             block: scope.mangle_unnamed_child(self.block),
@@ -257,14 +268,24 @@ impl Mangle for MirIf<XID> {
     }
 }
 
-impl Mangle for MirElseBlock<XID> {
+impl Mangle for MirElseBlock<AbsoluteVar> {
     type Output = MirElseBlock<MangledVar>;
-    fn mangle(self, scope: &mut Scope) -> Self::Output {
+    fn mangle(self, scope: &mut MangleScope) -> Self::Output {
         match self {
             MirElseBlock::ElseIf(if_block) => {
                 MirElseBlock::ElseIf(Box::new(if_block.mangle(scope)))
             }
             MirElseBlock::Else(block) => MirElseBlock::Else(scope.mangle_unnamed_child(block)),
+        }
+    }
+}
+
+impl Mangle for MirType<AbsoluteVar> {
+    type Output = MirType<MangledVar>;
+    fn mangle(self, _scope: &mut MangleScope) -> Self::Output {
+        match self {
+            Self::Primitive(primitive) => MirType::Primitive(primitive),
+            Self::UserDefined(path) => MirType::UserDefined(path),
         }
     }
 }

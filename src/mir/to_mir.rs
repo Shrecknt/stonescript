@@ -5,6 +5,7 @@ use crate::{
         FunctionDecl, IfBlock, Path, Statement, Type, WhileLoop,
     },
     token::{LiteralType, XID},
+    TokenTree,
 };
 
 pub trait ToMir {
@@ -13,13 +14,14 @@ pub trait ToMir {
     fn into_mir(self) -> Self::Output;
 }
 
-pub type MirPath = Vec<XID>;
+pub type RelativePath = Vec<XID>;
 impl VariableName for XID {
-    type Path = MirPath;
+    type VariablePath = RelativePath;
+    type OtherPath = RelativePath;
 }
 
 impl ToMir for Path {
-    type Output = MirPath;
+    type Output = RelativePath;
     fn into_mir(self) -> Self::Output {
         self.into_tokens()
             .into_iter()
@@ -40,6 +42,7 @@ pub enum MirStatement<V: VariableName> {
     If(MirIf<V>),
     While(MirWhile<V>),
     For(Box<MirFor<V>>),
+    Import(V::OtherPath),
 }
 
 impl ToMir for Statement {
@@ -57,6 +60,10 @@ impl ToMir for Statement {
             Self::If(if_block) => MirStatement::If(if_block.into_mir()),
             Self::While(while_loop) => MirStatement::While(while_loop.into_mir()),
             Self::For(for_loop) => MirStatement::For(Box::new(for_loop.into_mir())),
+            Self::Import((_, path, _)) => MirStatement::Import(path.into_mir()),
+            Self::Macro((_, _path, _contents)) => {
+                unimplemented!("Statement macros are currently unimplemented")
+            }
         }
     }
 }
@@ -72,12 +79,13 @@ impl ToMir for Vec<Statement> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirExpression<V: VariableName> {
     Literal(LiteralType),
-    Variable(V::Path),
+    Variable(V::VariablePath),
     Property(Box<MirExpression<V>>, XID),
-    Call(MirPath, Vec<MirExpression<V>>),
+    Call(V::OtherPath, Vec<MirExpression<V>>),
     Index(Box<MirExpression<V>>, Box<MirExpression<V>>),
     UnaryOp(MirUnaryOp, Box<MirExpression<V>>),
     BinaryOp(Box<MirExpression<V>>, MirBinaryOp, Box<MirExpression<V>>),
+    Command(String),
 }
 
 impl ToMir for Expression {
@@ -111,18 +119,37 @@ impl ToMir for Expression {
                 op.into_mir(),
                 Box::new(right.into_mir()),
             ),
+            Self::Macro(_, path, contents) => {
+                // Temporary command parsing until macros are fully implemented
+
+                let path = path.into_tokens();
+                if let [ident] = path.as_slice() {
+                    if ident.inner() == "command" {
+                        if let [TokenTree::Literal(literal)] = contents.into_contents().0.as_slice()
+                        {
+                            if let LiteralType::String(value) = literal.inner() {
+                                return MirExpression::Command(value.clone());
+                            }
+                        }
+
+                        panic!("Invalid command macro invocation")
+                    }
+                }
+
+                unimplemented!("Expression macros other than $command are currently unimplemented")
+            }
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum MirType {
+pub enum MirType<V: VariableName> {
     Primitive(MirPrimitive),
-    UserDefined(MirPath),
+    UserDefined(V::OtherPath),
 }
 
 impl ToMir for Type {
-    type Output = MirType;
+    type Output = MirType<XID>;
 
     fn into_mir(self) -> Self::Output {
         match self {
@@ -136,7 +163,7 @@ impl ToMir for Type {
 pub struct MirDeclaration<V: VariableName> {
     pub is_static: bool,
     pub name: V,
-    pub ty: MirType,
+    pub ty: MirType<V>,
     pub value: Option<MirExpression<V>>,
 }
 
@@ -160,8 +187,8 @@ impl ToMir for Declaration {
 pub struct MirFunction<V: VariableName> {
     pub is_static: bool,
     pub name: XID,
-    pub args: Vec<(V, MirType)>,
-    pub return_type: MirType,
+    pub args: Vec<(V, MirType<V>)>,
+    pub return_type: MirType<V>,
     pub block: Vec<MirStatement<V>>,
 }
 
@@ -262,7 +289,7 @@ impl ToMir for ForLoop {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MirAssignment<V: VariableName> {
-    pub variable: V::Path,
+    pub variable: V::VariablePath,
     pub value: MirExpression<V>,
 }
 

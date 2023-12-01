@@ -6,7 +6,7 @@ use std::{
 use stonescript::{
     config::ProjectConfig,
     hir::{Statement, ToTokens},
-    mir::{Mangle, Scope, ToMir},
+    mir::{AbsoluteScope, MangleScope, ToMir},
     token::parse_from_reader,
     TokenIter, VERSION,
 };
@@ -53,10 +53,13 @@ fn main() -> eyre::Result<()> {
     let statements: Vec<Statement> = TokenIter::from(&tokenized).parse()?;
     println!("\nAST:\n\n{:#?}", statements.clone().into_tokens());
 
-    let mir_unmangled = statements.into_mir();
-    println!("MIR (pre-mangled): {:?}", mir_unmangled);
+    let mir_first = statements.into_mir();
+    println!("MIR (first): {:?}", mir_first);
 
-    let mir_mangled = mir_unmangled.mangle(&mut Scope::new(&project_config.package.name));
+    let mir_absolute = AbsoluteScope::root_to_absolute(mir_first);
+    println!("MIR (absolute): {:?}", mir_absolute);
+
+    let mir_mangled = MangleScope::mangle_root(&project_config.package.name, mir_absolute);
     println!("\nMIR (mangled): {:?}", mir_mangled);
 
     // let rebuilt_statements: Vec<RebuiltStatement> = rebuild_from_ast(statements, &project_config);

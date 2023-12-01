@@ -35,10 +35,7 @@ where
     }
 }
 
-pub trait Token: Sealed
-where
-    Self: Sized + ToTokenTree,
-{
+pub trait Token: Sized + ToTokenTree + Sealed {
     const NAME: &'static str;
     fn parse_token(token_tree: TokenTree) -> Option<Self>;
 }

@@ -64,6 +64,12 @@ impl<T: ToTokens> ToTokens for Vec<T> {
     }
 }
 
+impl ToTokens for TokenStream {
+    fn write_into_stream(mut self, stream: &mut Vec<TokenTree>) {
+        stream.append(&mut self.0);
+    }
+}
+
 macro_rules! reverse_tuple {
     ($tup:expr, $fni:tt $($ni:tt)*) => {
         ($tup.$fni, $($tup.$ni,)*)
